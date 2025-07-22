@@ -1,2 +1,4 @@
-discord.py=>2.5.2
 dotenv
+discord.py=>2.5.2
+loguru=>0.7.3
+python-box=>7.3.2
