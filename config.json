@@ -1,0 +1,29 @@
+{
+    "bot": {
+        "name": "Miyabi",
+        "prefix": ".",
+        "version": "0.0.1",
+        "color": {
+            "default": "#00FF00",
+            "error": "#DD2E44",
+            "info": "#41e332",
+            "warn": "#FFCC4D"
+        },
+        "assets": {
+            "avatar": "https://cdn.discordapp.com/avatars/1397204614499012738/1438de5de147c34207d2b9474e19f1ea.png?size=1024",
+            "banner": "https://cdn.discordapp.com/banners/1397204614499012738/1e11b30e996e44738fa948885d1df6c4.png?size=1024",
+            "fallback_avatar": "assets/miyabi_arts/default_avatar.jpg",
+            "fallback_banner": "assets/miyabi_arts/default_banner.jpg"
+        },
+        "urls": {
+            "support_server": "https://discord.gg/E4Q4dvEuZN",
+            "github": "https://github.com/IndiMops/Miyabi-bot"
+        }
+    },
+    "dev": {
+        "name": "Indi Mops",
+        "id": "734082410504781854",
+        "emoji": "<:dev:1398011824099688618>",
+        "website": "https://indimops.github.io/"
+    }
+}

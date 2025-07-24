@@ -9,12 +9,11 @@ from utils.misc import load_json
 
 load_dotenv()
 
-json_config = load_json("config.json")
-
-
 class Config:
     # environment variables
-    TOKEN = os.getenv("DISCORD_BOT_TOKEN")
-
+    DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
+    
+    json_config = load_json("config.json")
+    
     # public variables
     PUBLIC = Box(json_config)
