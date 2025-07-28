@@ -15,7 +15,7 @@ Log File:
 - Logs are stored in 'logs/bot.log' with a rotation size of 10 MB and retained for 10 days.
 """
 import sys
-
+import logging
 import os
 
 from dotenv import load_dotenv
@@ -46,3 +46,28 @@ logger.add(
     level="DEBUG",
     format="{time:YYYY-MM-DD HH:mm:ss} | {level} | {file}:{name}:{function}:{line} | {message}"
 )
+
+# Setting up a standard Python logger
+standard_logger = logging.getLogger()
+standard_logger.setLevel(logging.DEBUG)
+
+# Format for standard console logs
+console_handler = logging.StreamHandler(sys.stdout)
+console_handler.setLevel(logging.INFO)
+console_formatter = logging.Formatter(
+    "%(asctime)s | [%(levelname)s] %(name)s:%(lineno)d - %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+console_handler.setFormatter(console_formatter)
+
+# Format for standard in-file logs
+file_handler = logging.FileHandler("logs/standard.log", mode="a", encoding="utf-8")
+file_handler.setLevel(logging.DEBUG)
+file_formatter = logging.Formatter(
+    "%(asctime)s | [%(levelname)s] %(name)s:%(lineno)d - %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+file_handler.setFormatter(file_formatter)
+
+standard_logger.addHandler(console_handler)
+standard_logger.addHandler(file_handler)
