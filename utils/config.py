@@ -12,6 +12,7 @@ load_dotenv()
 class Config:
     # environment variables
     DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
+    DEBUG = os.getenv("DEBUG", "False").lower() == "true"
     
     json_config = load_json("config.json")
     

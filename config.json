@@ -18,7 +18,8 @@
         "urls": {
             "support_server": "https://discord.gg/E4Q4dvEuZN",
             "github": "https://github.com/IndiMops/Miyabi-bot"
-        }
+        },
+        "disabled_cogs_folder": ["dev"]
     },
     "dev": {
         "name": "Indi Mops",

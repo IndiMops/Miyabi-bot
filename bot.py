@@ -65,11 +65,15 @@ async def change_status():
 
 
 async def load_extentions():
-    for root, files in os.walk("./cogs"):
+    for root, _, files in os.walk("./cogs"):
         for file in files:
             if file.endswith(".py") and not file.startswith("__"):
                 rel_path = os.path.relpath(os.path.join(root, file), "cogs")
                 module = f"cogs.{rel_path}".replace(os.sep, ".").removesuffix(".py")
+                
+                if not Config.DEBUG and module in Config.PUBLIC.bot.disabled_cogs_folder:
+                    continue
+                
                 try:
                     await bot.load_extension(module)
                     logger.info(f"✅ Loaded extension: {module}")
