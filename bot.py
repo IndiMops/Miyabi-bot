@@ -1,12 +1,13 @@
 import asyncio
 import os
+import time
 
 import discord
 from discord.ext import commands, tasks
 
 from utils.config import Config
 from utils.logger import logger
-from utils.misc import get_version, fetch_slash_commands
+from utils.misc import get_version, fetch_slash_commands, load_json, save_json, caching_commands
 
 
 bot = commands.Bot(
@@ -26,6 +27,11 @@ async def on_ready():
         change_status.start()
         logger.info(f"Bot is ready! Logged in as {bot.user}")
         bot.slash_commands = await fetch_slash_commands(bot)
+        
+        config = load_json("config.json")
+        config["bot"]["last_update"] = int(time.time())
+        save_json(config, "config.json")
+        await caching_commands(bot, "config.json")
         
     except Exception as e:
         logger.error(f"Error during bot startup: {e}")

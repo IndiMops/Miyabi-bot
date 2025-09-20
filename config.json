@@ -3,8 +3,9 @@
         "name": "Miyabi",
         "prefix": ".",
         "version": "0.0.1",
+        "last_update": 1758384622,
         "color": {
-            "default": "#00FF00",
+            "default": "#4c5d6d",
             "error": "#DD2E44",
             "info": "#41e332",
             "warn": "#FFCC4D"
@@ -19,7 +20,31 @@
             "support_server": "https://discord.gg/E4Q4dvEuZN",
             "github": "https://github.com/IndiMops/Miyabi-bot"
         },
-        "disabled_cogs_folder": ["dev"]
+        "disabled_cogs_folder": [
+            "dev"
+        ],
+        "commands": [
+            {
+                "name": "ping",
+                "id": 1398031179495506121
+            },
+            {
+                "name": "deep_menu",
+                "id": 1399181313457651722
+            },
+            {
+                "name": "pagination_test",
+                "id": 1399181313457651723
+            },
+            {
+                "name": "info",
+                "id": 1413168761720016906
+            },
+            {
+                "name": "help",
+                "id": 1417949694104961208
+            }
+        ]
     },
     "dev": {
         "name": "Indi Mops",

@@ -1,5 +1,6 @@
 #./utils/config.py
 import os
+import json
 
 from box import Box
 from dotenv import load_dotenv
@@ -18,3 +19,20 @@ class Config:
     
     # public variables
     PUBLIC = Box(json_config)
+    
+    @classmethod
+    def get_command_id_by_name(cls, name: str) -> int | None:
+        """
+        Отримує ID команди за її назвою.
+
+        Args:
+            name (str): Назва команди.
+
+        Returns:
+            int | None: ID команди, якщо знайдено, або None.
+        """
+        commands = cls.PUBLIC.bot.get("commands", [])
+        for command in commands:
+            if command["name"] == name:
+                return command["id"]
+        return None
