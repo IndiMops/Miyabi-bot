@@ -8,20 +8,6 @@ from views.pagination import PagginationView
 
 
 class NavSelect(Select):
-    """
-    NavSelect is a custom selection class that allows users to navigate through a hierarchical selection of options.
-    Attributes:
-        history (List[str]): A list that keeps track of the user's selection history.
-        embed_cls (Type[Any]): A class used to generate the embed content for the selections.
-        _placeholder (str): A placeholder text displayed in the selection menu.
-    Methods:
-        __init__(history: List[str], embed_cls: Type[Any], placeholder: str = "Select an option..."):
-            Initializes the NavSelect instance with the provided history, embed class, and placeholder.
-        callback(interaction: discord.Interaction):
-            Handles the user's selection and updates the view based on the selected option.
-        _show_level(interaction: discord.Interaction):
-            Displays the current level of options based on the user's selection history.
-    """
     def __init__(
         self,
         history: List[str],
@@ -34,14 +20,29 @@ class NavSelect(Select):
 
         current = self.history[-1]
         children = embed_cls.get_children(current)
-        options = [discord.SelectOption(label=opt, value=opt)
-                   for opt in children]
+
+        # Check if children contains labels, values, and emojis
+        options = []
+        for child in children:
+            if isinstance(child, dict):  # If child is a dictionary with 'label', 'value', and optional 'emoji'
+                options.append(discord.SelectOption(
+                    label=child['label'],
+                    value=child['value'],
+                    emoji=child.get('emoji')  # Use .get() to handle optional 'emoji'
+                ))
+            elif isinstance(child, tuple):  # If child is a tuple (label, value, emoji)
+                if len(child) == 3:  # Tuple with emoji
+                    options.append(discord.SelectOption(label=child[0], value=child[1], emoji=child[2]))
+                elif len(child) == 2:  # Tuple without emoji
+                    options.append(discord.SelectOption(label=child[0], value=child[1]))
+            else:  # Fallback for backward compatibility (child is a string)
+                options.append(discord.SelectOption(label=child, value=child))
 
         if len(self.history) > 1:
             options.append(discord.SelectOption(label="Back", value="BACK"))
 
         super().__init__(placeholder=self._placeholder,
-                         min_values=1, max_values=1, options=options)
+                        min_values=1, max_values=1, options=options)
 
     async def callback(self, interaction: discord.Interaction):
         choice = self.values[0]
