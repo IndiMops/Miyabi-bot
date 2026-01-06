@@ -3,7 +3,7 @@
         "name": "Miyabi",
         "prefix": ".",
         "version": "0.0.1",
-        "last_update": 1758384622,
+        "last_update": 1759158765,
         "color": {
             "default": "#4c5d6d",
             "error": "#DD2E44",
@@ -29,10 +29,6 @@
                 "id": 1398031179495506121
             },
             {
-                "name": "deep_menu",
-                "id": 1399181313457651722
-            },
-            {
                 "name": "pagination_test",
                 "id": 1399181313457651723
             },
@@ -43,6 +39,14 @@
             {
                 "name": "help",
                 "id": 1417949694104961208
+            },
+            {
+                "name": "characters",
+                "id": 1419017408827621516
+            },
+            {
+                "name": "deep_menu",
+                "id": 1422193141578203332
             }
         ]
     },
