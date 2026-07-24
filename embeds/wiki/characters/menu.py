@@ -6,7 +6,7 @@ import discord
 from utils.config import Config
 from utils.misc import HEXtoColor
 
-from embeds.alice_embed import AliceEmbed
+from .agents import AliceEmbed
 
 FIRE_CHARACTERS_PER_PAGE = 24
 FIRE_PLACEHOLDER_CHARACTERS = [

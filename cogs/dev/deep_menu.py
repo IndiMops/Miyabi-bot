@@ -3,7 +3,7 @@ from discord.ext import commands
 from discord import app_commands
 
 from views.nav import NavView
-from embeds.deep_embeds import DeepEmbeds
+from embeds.dev import DeepEmbeds
 
 
 class SplitMenuCog(commands.Cog):

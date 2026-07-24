@@ -11,7 +11,8 @@ from utils.logger import logger
 from utils.misc import fetch_slash_commands, HEXtoColor
 from views.pagination import PagginationView
 
-from embeds.commands_help import CommandsHelpEmbeds, HelpCommands as Commands, HelpCategory as Categories
+from embeds.information import HelpCategory as Categories
+from embeds.information import HelpCommands as Commands
 
 
 class HelpCommand(commands.Cog):

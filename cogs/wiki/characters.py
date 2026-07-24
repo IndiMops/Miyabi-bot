@@ -2,7 +2,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-from embeds.commands_characters import CharactersMainEmbeds as CharactersEmbeds
+from embeds.wiki.characters import CharactersMainEmbeds as CharactersEmbeds
 from utils.logger import logger
 from views.nav import NavView
 
