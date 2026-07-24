@@ -8,6 +8,61 @@ from utils.misc import HEXtoColor
 
 from embeds.alice_embed import AliceEmbed
 
+FIRE_CHARACTERS_PER_PAGE = 24
+FIRE_PLACEHOLDER_CHARACTERS = [
+    {
+        "label": f"Вогняний агент {index:02d}",
+        "value": f"FireAgent{index:02d}",
+        "description": f"Тестовий агент №{index}",
+    }
+    for index in range(1, 36)
+]
+
+
+def build_fire_character_pages(
+    characters: list[dict[str, str]],
+) -> list[discord.Embed]:
+    pages = []
+    page_count = (
+        len(characters) + FIRE_CHARACTERS_PER_PAGE - 1
+    ) // FIRE_CHARACTERS_PER_PAGE
+
+    for page_index in range(page_count):
+        start = page_index * FIRE_CHARACTERS_PER_PAGE
+        page_characters = characters[
+            start:start + FIRE_CHARACTERS_PER_PAGE
+        ]
+        end = start + len(page_characters)
+
+        embed = discord.Embed(
+            title=(
+                f"Вогняні агенти — сторінка "
+                f"{page_index + 1}/{page_count}"
+            ),
+            description=(
+                "Це демонстраційний список. На кожній сторінці select-меню "
+                "містить до 24 агентів і окремий option `Back`."
+            ),
+            color=HEXtoColor(Config.PUBLIC.bot.color.default),
+        )
+
+        for character in page_characters:
+            embed.add_field(
+                name=character["label"],
+                value="Персонаж-заглушка",
+                inline=True,
+            )
+
+        embed.set_footer(
+            text=(
+                f"Агенти {start + 1}–{end} із {len(characters)} • "
+                "Оберіть агента в меню нижче"
+            )
+        )
+        pages.append(embed)
+
+    return pages
+
 
 class CharactersMainEmbeds:
     Main = discord.Embed(
@@ -56,18 +111,64 @@ class CharactersMainEmbeds:
         ),
         icon_url=Config.PUBLIC.bot.assets.avatar
     ).add_field(
-        name="Агенти фізичного атрибуту:", value="", inline=False
+        name="Агенти фізичного атрибуту",
+        value="Оберіть агента в меню нижче.",
+        inline=False
     ).add_field(
         name="<:Agent_Alice_Thymefield_Icon:1422224006219698248> Аліса",
-        value=f"</characters:{Config.get_command_id_by_name("characters")}> `agent=alice`",
+        value="Відкриває демонстраційні сторінки огляду, навичок і збірки.",
         inline=False
     )
-    
+
     PhysicalCharacters_children = [
-        {"label": "Аліса", "value": AliceEmbed.get_embed("Main"), "emoji": "<:Agent_Alice_Thymefield_Icon:1422224006219698248>"}
+        {
+            "label": "Аліса",
+            "value": "Alice",
+            "emoji": "<:Agent_Alice_Thymefield_Icon:1422224006219698248>"
+        }
     ]
-    
-    
+
+    # Адаптуємо окремий AliceEmbed до контракту NavView:
+    # Alice -> звичайний embed, Alice_pages -> пагінація.
+    Alice = AliceEmbed.get_embed("Main")
+    Alice_pages = AliceEmbed.get_pages("Main")
+
+    FireCharacters_children = FIRE_PLACEHOLDER_CHARACTERS
+    FireCharacters_pages = build_fire_character_pages(
+        FireCharacters_children
+    )
+    FireCharacters = FireCharacters_pages[0]
+
+    IceCharacters = discord.Embed(
+        title="Крижані агенти",
+        description=(
+            "Цей розділ ще не наповнений. Додайте IceCharacters_children, "
+            "коли будуть готові сторінки крижаних агентів."
+        ),
+        color=HEXtoColor(Config.PUBLIC.bot.color.warn)
+    )
+    IceCharacters_children = []
+
+    ElectricCharacters = discord.Embed(
+        title="Електричні агенти",
+        description=(
+            "Цей розділ ще не наповнений. Додайте "
+            "ElectricCharacters_children, коли будуть готові сторінки "
+            "електричних агентів."
+        ),
+        color=HEXtoColor(Config.PUBLIC.bot.color.warn)
+    )
+    ElectricCharacters_children = []
+
+    EtherCharacters = discord.Embed(
+        title="Ефірні агенти",
+        description=(
+            "Цей розділ ще не наповнений. Додайте EtherCharacters_children, "
+            "коли будуть готові сторінки ефірних агентів."
+        ),
+        color=HEXtoColor(Config.PUBLIC.bot.color.warn)
+    )
+    EtherCharacters_children = []
 
     @classmethod
     def get_embed(cls, key: str) -> discord.Embed:
@@ -80,3 +181,23 @@ class CharactersMainEmbeds:
     @classmethod
     def get_pages(cls, key: str):
         return getattr(cls, f"{key}_pages", None)
+
+
+for fire_character in FIRE_PLACEHOLDER_CHARACTERS:
+    setattr(
+        CharactersMainEmbeds,
+        fire_character["value"],
+        discord.Embed(
+            title=fire_character["label"],
+            description=(
+                "Це демонстраційна сторінка вогняного агента. "
+                "Пізніше тут можна розмістити справжній опис, навички "
+                "та рекомендовану збірку."
+            ),
+            color=HEXtoColor(Config.PUBLIC.bot.color.warn),
+        ).add_field(
+            name="Внутрішній ключ",
+            value=f"`{fire_character['value']}`",
+            inline=False,
+        ),
+    )

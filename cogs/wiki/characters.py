@@ -1,12 +1,10 @@
 import discord
-from discord.ext import commands
 from discord import app_commands
-
-from utils.config import Config
-from views.nav import NavView
-from utils.logger import logger
+from discord.ext import commands
 
 from embeds.commands_characters import CharactersMainEmbeds as CharactersEmbeds
+from utils.logger import logger
+from views.nav import NavView
 
 
 class CharactersCommand(commands.Cog):
@@ -23,4 +21,4 @@ class CharactersCommand(commands.Cog):
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(CharactersCommand(bot))
-    logger.info("Help command cog loaded.")
+    logger.info("Characters command cog loaded.")
