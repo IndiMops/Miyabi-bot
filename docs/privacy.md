@@ -3,7 +3,7 @@
 layout: default
 title: Miyabi Bot Privacy Policy
 permalink: /privacy/
---------------------
+---
 
 # Miyabi Bot Privacy Policy
 

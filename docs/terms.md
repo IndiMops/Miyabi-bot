@@ -3,7 +3,7 @@
 layout: default
 title: Miyabi Bot Terms of Service
 permalink: /terms/
-------------------
+---
 
 # Miyabi Bot Terms of Service
 
