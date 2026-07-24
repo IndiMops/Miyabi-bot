@@ -59,12 +59,17 @@ class CharactersMainEmbeds:
         name="Агенти фізичного атрибуту:", value="", inline=False
     ).add_field(
         name="<:Agent_Alice_Thymefield_Icon:1422224006219698248> Аліса",
-        value=f"</characters:{Config.get_command_id_by_name("characters")}> `agent=alice`",
+        value=f"</characters:{Config.get_command_id_by_name('characters')}> `agent=alice`",
         inline=False
     )
-    
+
+    Alice = AliceEmbed.get_embed("Main")
     PhysicalCharacters_children = [
-        {"label": "Аліса", "value": AliceEmbed.get_embed("Main"), "emoji": "<:Agent_Alice_Thymefield_Icon:1422224006219698248>"}
+        {
+            "label": "Аліса",
+            "value": "Alice",
+            "emoji": "<:Agent_Alice_Thymefield_Icon:1422224006219698248>",
+        }
     ]
     
     

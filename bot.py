@@ -1,94 +1,93 @@
-import asyncio
 import os
-import time
+from pathlib import Path
 
 import discord
 from discord.ext import commands, tasks
 
 from utils.config import Config
 from utils.logger import logger
-from utils.misc import get_version, fetch_slash_commands, load_json, save_json, caching_commands
+from utils.misc import get_version
 
 
-bot = commands.Bot(
+def is_disabled_extension(module: str, disabled_folders: list[str]) -> bool:
+    """Return whether an extension belongs to a disabled cog folder."""
+    module_parts = set(module.split(".")[1:-1])
+    return bool(module_parts.intersection(disabled_folders))
+
+
+class MiyabiBot(commands.Bot):
+    async def setup_hook(self) -> None:
+        await load_extensions(self)
+        await self.tree.sync()
+
+        if not change_status.is_running():
+            change_status.start()
+
+
+intents = discord.Intents.default()
+intents.guilds = True
+
+bot = MiyabiBot(
     command_prefix=Config.PUBLIC.bot.prefix,
-    intents=discord.Intents.all(),
+    intents=intents,
     help_command=None,
     case_insensitive=True,
-    allowed_mentions=discord.AllowedMentions(everyone=False, roles=False, users=True),
-    owner_id=Config.PUBLIC.dev.id,
+    allowed_mentions=discord.AllowedMentions(
+        everyone=False,
+        roles=False,
+        users=True,
+    ),
+    owner_id=int(Config.PUBLIC.dev.id),
 )
 
 
 @bot.event
-async def on_ready():
-    try:
-        await bot.tree.sync()
-        change_status.start()
-        logger.info(f"Bot is ready! Logged in as {bot.user}")
-        bot.slash_commands = await fetch_slash_commands(bot)
-        
-        config = load_json("config.json")
-        config["bot"]["last_update"] = int(time.time())
-        save_json(config, "config.json")
-        await caching_commands(bot, "config.json")
-        
-    except Exception as e:
-        logger.error(f"Error during bot startup: {e}")
+async def on_ready() -> None:
+    logger.info(f"Bot is ready! Logged in as {bot.user}")
 
 
-@tasks.loop(seconds=10)
+@tasks.loop(seconds=30)
 async def change_status():
-    """
-    Changes the status and activity of the bot.
-    This function iterates through the guilds the bot is a member of and counts the unique non-bot
-    members.
-    It then sets the bot's status and activity using the count of unique members.
-    Parameters:
-        None
-    Returns:
-        None
-    """
-    unique_members = set()
-
-    for guild in bot.guilds:
-        for member in guild.members:
-            if not member.bot:
-                unique_members.add(member.id)
-
-    statuses = [
-        discord.Game(
-            name=f"/help | {get_version('v0.0.1')}",),
+    statuses = (
+        discord.Game(name=f"/help | {get_version(Config.PUBLIC.bot.version)}"),
         discord.Activity(
             type=discord.ActivityType.watching,
-            name=f"{len(unique_members)} members"
-        )
-    ]
-
-    for status in statuses:
-        await bot.change_presence(status=discord.Status.online, activity=status)
-        await asyncio.sleep(25)
+            name=f"{len(bot.guilds)} servers",
+        ),
+    )
+    status = statuses[change_status.current_loop % len(statuses)]
+    await bot.change_presence(status=discord.Status.online, activity=status)
 
 
-async def load_extentions():
-    for root, _, files in os.walk("./cogs"):
+@change_status.before_loop
+async def before_change_status() -> None:
+    await bot.wait_until_ready()
+
+
+async def load_extensions(target_bot: commands.Bot) -> None:
+    cogs_path = Path(__file__).resolve().parent / "cogs"
+    disabled_folders = list(Config.PUBLIC.bot.disabled_cogs_folder)
+
+    for root, _, files in os.walk(cogs_path):
         for file in files:
             if file.endswith(".py") and not file.startswith("__"):
-                rel_path = os.path.relpath(os.path.join(root, file), "cogs")
+                rel_path = os.path.relpath(os.path.join(root, file), cogs_path)
                 module = f"cogs.{rel_path}".replace(os.sep, ".").removesuffix(".py")
-                
-                if not Config.DEBUG and module in Config.PUBLIC.bot.disabled_cogs_folder:
+
+                if (
+                    not Config.DEBUG
+                    and is_disabled_extension(module, disabled_folders)
+                ):
+                    logger.info(f"Skipped disabled extension: {module}")
                     continue
-                
+
                 try:
-                    await bot.load_extension(module)
-                    logger.info(f"✅ Loaded extension: {module}")
-                except Exception as e:
-                    logger.error(f"❌ Failed to load {module}: {e}")
+                    await target_bot.load_extension(module)
+                    logger.info(f"Loaded extension: {module}")
+                except commands.ExtensionError:
+                    logger.exception(f"Failed to load extension: {module}")
+                    raise
+
 
 if __name__ == "__main__":
-    async def main():
-        await load_extentions()
-        await bot.start(Config.DISCORD_BOT_TOKEN)
-    
-    asyncio.run(main())
+    bot.run(Config.require_token(), log_handler=None)

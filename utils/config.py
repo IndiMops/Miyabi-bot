@@ -1,25 +1,30 @@
-#./utils/config.py
 import os
-import json
+from pathlib import Path
 
 from box import Box
 from dotenv import load_dotenv
 
-from utils.logger import logger
 from utils.misc import load_json
 
-load_dotenv()
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+load_dotenv(PROJECT_ROOT / ".env")
+
 
 class Config:
-    # environment variables
     DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
     DEBUG = os.getenv("DEBUG", "False").lower() == "true"
-    
-    json_config = load_json("config.json")
-    
-    # public variables
+
+    json_config = load_json(PROJECT_ROOT / "config.json")
     PUBLIC = Box(json_config)
-    
+
+    @classmethod
+    def require_token(cls) -> str:
+        if not cls.DISCORD_BOT_TOKEN:
+            raise RuntimeError(
+                "DISCORD_BOT_TOKEN is not set. Add it to the environment or .env file."
+            )
+        return cls.DISCORD_BOT_TOKEN
+
     @classmethod
     def get_command_id_by_name(cls, name: str) -> int | None:
         """

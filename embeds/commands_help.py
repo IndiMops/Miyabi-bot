@@ -110,8 +110,8 @@ class HelpCommands(CommandsHelpEmbeds):
         icon_url=Config.PUBLIC.bot.assets.avatar
     )
 
-    CommandsNotDound = discord.Embed(
-        title="Команди не знайденs",
+    CommandsNotFound = discord.Embed(
+        title="Команди не знайдено",
         description="Для обраної категорії немає доступних команд.",
         color=HEXtoColor(Config.PUBLIC.bot.color.warn)
     )
