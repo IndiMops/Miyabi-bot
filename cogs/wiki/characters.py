@@ -2,7 +2,6 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 
-from utils.config import Config
 from views.nav import NavView
 from utils.logger import logger
 
@@ -23,4 +22,4 @@ class CharactersCommand(commands.Cog):
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(CharactersCommand(bot))
-    logger.info("Help command cog loaded.")
+    logger.info("Characters command cog loaded.")

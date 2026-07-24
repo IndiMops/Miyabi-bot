@@ -2,7 +2,7 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 
-from views.pagination import PagginationView
+from views.pagination import PaginationView
 from utils.logger import logger
 
 
@@ -36,11 +36,16 @@ class EmbedTest(commands.Cog):
                               description="This is the tenth page"),
             ]
 
-            view = PagginationView(embeds, select_menu=None)
+            view = PaginationView(embeds)
             await interaction.response.send_message(embed=view.initial, view=view, ephemeral=True)
-        except Exception as e:
-            logger.error(f"An error occurred in embed_test command: {e}")
-            await interaction.response.send_message(
+        except Exception:
+            logger.exception("An error occurred in pagination_test command")
+            response = (
+                interaction.followup.send
+                if interaction.response.is_done()
+                else interaction.response.send_message
+            )
+            await response(
                 content="An error occurred while processing your request. Please try again later.",
                 ephemeral=True
             )

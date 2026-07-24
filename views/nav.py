@@ -3,8 +3,7 @@ from typing import List, Type, Optional, Any
 import discord
 from discord.ui import View, Select
 
-from utils.logger import logger
-from views.pagination import PagginationView
+from views.pagination import PaginationView
 
 
 class NavSelect(Select):
@@ -58,7 +57,7 @@ class NavSelect(Select):
         if pages:
             select_menu = NavSelect(
                 self.history, self.embed_cls, self._placeholder)
-            pag_view = PagginationView(pages, select_menu)
+            pag_view = PaginationView(pages, select_menu)
             await interaction.response.edit_message(embed=pag_view.initial, view=pag_view)
         else:
             await self._show_level(interaction)
