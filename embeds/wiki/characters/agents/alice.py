@@ -1,91 +1,179 @@
-"""Embed pages for Alice Thymefield."""
+"""Navigation embeds and placeholder pages for Alice Thymefield."""
 
 from typing import List
-from datetime import datetime
 
 import discord
 
-from utils.config import Config
+from embeds.general import add_default_footer, add_fields
 from utils.misc import HEXtoColor
-from embeds.general import add_default_footer
+
+ALICE_COLOR = "243A63"
+ALICE_ICON_URL = (
+    "https://res.cloudinary.com/z5ozewii/image/upload/"
+    "v1785057256/Agent_Alice_Thymefield_Icon_ojp90y.png"
+)
+ALICE_AUTHOR_ICON_URL = (
+    "https://res.cloudinary.com/z5ozewii/image/upload/"
+    "v1785055164/Message_Alice_Thymefield_Icon_webp_vr2vav.png"
+)
+
+
+def _decorate_alice_embed(embed: discord.Embed) -> discord.Embed:
+    """Apply the shared Alice author, thumbnail, and project footer."""
+    embed.set_author(
+        name="Аліса Таймфілд",
+        icon_url=ALICE_AUTHOR_ICON_URL,
+        url="https://zenless-zone-zero.fandom.com/wiki/Alice_Thymefield",
+    )
+    embed.set_thumbnail(url=ALICE_ICON_URL)
+    return add_default_footer(embed)
+
+
+def _build_placeholder_pages(
+    section_title: str,
+    page_count: int,
+) -> list[discord.Embed]:
+    """Create temporary paginated embeds for an Alice information section."""
+    return [
+        _decorate_alice_embed(
+            discord.Embed(
+                title=f"{section_title} — {page}/{page_count}",
+                description=(
+                    f"Заглушка для сторінки {page} розділу "
+                    f"«{section_title}». Тут пізніше буде додано вміст."
+                ),
+                color=HEXtoColor(ALICE_COLOR),
+            )
+        )
+        for page in range(1, page_count + 1)
+    ]
 
 
 class AliceEmbed:
-    footer = "Mops Storage © 2020-{curent_year} Всі права захищено • {dev_site_url}".format(curent_year=datetime.now().year, dev_site_url=Config.PUBLIC.dev.website)
+    Main_placeholder = "Оберіть розділ про Алісу..."
+    Main_children = [
+        {
+            "label": "Основна інформація",
+            "value": "AliceBasicInfo",
+            "description": "Огляд персонажа — 2 сторінки",
+        },
+        {
+            "label": "Бойові механіки",
+            "value": "AliceCombatMechanics",
+            "description": "Особливості бою — 3 сторінки",
+        },
+        {
+            "label": "Навички",
+            "value": "AliceSkills",
+            "description": "Набір навичок — 6 сторінок",
+        },
+        {
+            "label": "Mindscape Cinema",
+            "value": "AliceMindscapeCinema",
+            "description": "Рівні Mindscape — 3 сторінки",
+        },
+        {
+            "label": "Прокачування",
+            "value": "AliceProgression",
+            "description": "Матеріали й розвиток — 4 сторінки",
+        },
+        {
+            "label": "Профіль",
+            "value": "AliceProfile",
+            "description": "Історія та дані — 4 сторінки",
+        },
+    ]
+    
+
+    BasicInfoP1 = discord.Embed(
+        title="Основна інформація — 1/2",
+        description="Alice Thymefield — спадкоємиця престижної родини Thymefield, талановита фехтувальниця та дослідниця Ether science. Вона навчається у Celestia School for Girls, є зразковою ученицею та входить до складу Spook Shack.\n\nПопри сильний страх перед привидами й надприродними явищами, Alice відчуває до них майже нездорову цікавість. У бою вона виступає як Physical Anomaly DPS, накопичує ресурс Blade Etiquette та витрачає його на заряджену атаку Starshine Waltz, здатну активувати особливий ефект Polarity Assault.",
+        color=HEXtoColor(ALICE_COLOR),
+    ).set_image(
+        url="https://i.imgur.com/2Hf0bg6.png"
+    )
+
+    fields = [
+        {
+            "name": "Ранг:",
+            "value": "<:Icon_AgentRank_S:1530870923085742111>",
+            "inline": True,
+        },
+        {
+            "name": "Атрибут:",
+            "value": "<:Icon_Physical:1422213096117764116> Фізичний",
+            "inline": True,
+        },
+        {
+            "name": "Спеціалізація:",
+            "value": "<:Icon_Anomaly:1530871749804036136> Аномалія",
+            "inline": True,
+        },
+        {
+            "name": "Фракція:",
+            "value": "<:Faction_Spook_Shack:1530872488047804486> Spook Shack",
+            "inline": True,
+        },
+        {"name": "Дата народження:", "value": "30.07", "inline": True},
+        {"name": "Реліз:", "value": "<t:1754484720:D>", "inline": True},
+        {
+            "name": "Ексклюзивний W-Engine:",
+            "value": "<:Practiced_Perfection:1533459749700636673> [Відточена досконалість](https://zenless-zone-zero.fandom.com/wiki/Practiced_Perfection)",
+            "inline": True,
+        },
+    ]
+
+    add_fields(BasicInfoP1, fields)
+        
+    _decorate_alice_embed(BasicInfoP1)
     
     
-    Main = discord.Embed(
-        title="Аліса Таймфілд — огляд",
+    # Second page of the Basic Info section is a placeholder for future content.
+    BasicInfoP2 = discord.Embed(
+        title="Основна інформація — 2/2",
         description=(
-            "Це демонстраційна головна сторінка агента. Тут можна розмістити "
-            "атрибут, спеціальність, фракцію та короткий опис персонажа."
+            "*Характеристики на 60 рівні з повністю відкритим Core Skill F, без W-Engine і Drive Discs.*\n\n"
+            "- HP: 7 673\n- ATK: 880\n- DEF: 606\n- Impact: 86\n- CRIT Rate: 5%\n- CRIT DMG: 50%\n- Anomaly Mastery: 142\n- Anomaly Proficiency: 118\n- PEN Ratio: 0%\n- Energy Regen: 1,2"
         ),
-        color=HEXtoColor(Config.PUBLIC.bot.color.default)
-    ).set_thumbnail(
-        url=Config.PUBLIC.bot.assets.avatar
-    ).add_field(
-        name="Атрибут",
-        value="Фізичний",
-        inline=True
-    ).add_field(
-        name="Статус сторінки",
-        value="Демонстраційний приклад",
-        inline=True
-    ).set_footer(
-        text=footer,
-        icon_url=Config.PUBLIC.bot.assets.avatar
+        color=HEXtoColor(ALICE_COLOR)
+    ).set_image(
+        url="https://i.imgur.com/4kwWaeR.png"
     )
     
-    set_default_footer = add_default_footer(Main)
-
-    Skills = discord.Embed(
-        title="Аліса Таймфілд — навички",
-        description=(
-            "Друга сторінка показує, як розділити великий опис агента "
-            "на кілька embeds."
-        ),
-        color=HEXtoColor(Config.PUBLIC.bot.color.default)
-    ).add_field(
-        name="Базова атака",
-        value="Тут буде опис базової атаки.",
-        inline=False
-    ).add_field(
-        name="Особлива атака",
-        value="Тут буде опис особливої атаки.",
-        inline=False
-    ).add_field(
-        name="Суперздібність",
-        value="Тут буде опис суперздібності.",
-        inline=False
-    )
+    fields = [
+        {
+            "name": "Технічна примітка",
+            "value": "Без бонусів Core Skill її базові характеристики на 60 рівні становлять приблизно:\n\nBase ATK: 805,7\nAnomaly Mastery: 106\n\nCore Skill F сумарно надає:\n\n- +75 Base ATK\n\n- +36 Anomaly Mastery.\n\n*Саме тому в одних базах можна побачити 806 ATK і 106 AM, а в інших 880 ATK і 142 AM. Ні, база даних не збожеволіла остаточно. Просто одна показує чистий рівень, а інша враховує Core Skill.*"
+        }
+    ]
+    add_fields(BasicInfoP2, fields)
     
-    set_default_footer = add_default_footer(Skills)
+    _decorate_alice_embed(BasicInfoP2)
 
-    Build = discord.Embed(
-        title="Аліса Таймфілд — приклад збірки",
-        description=(
-            "Третя сторінка є шаблоном. Замінити демонстраційні значення "
-            "можна після додавання перевірених ігрових даних."
-        ),
-        color=HEXtoColor(Config.PUBLIC.bot.color.default)
-    ).add_field(
-        name="W-Engine",
-        value="Тут буде рекомендований W-Engine.",
-        inline=False
-    ).add_field(
-        name="Drive Discs",
-        value="Тут буде рекомендований набір Drive Discs.",
-        inline=False
-    ).add_field(
-        name="Пріоритет характеристик",
-        value="Тут буде порядок основних і додаткових характеристик.",
-        inline=False
-    )
+    AliceBasicInfo_pages = [
+        BasicInfoP1,
+        BasicInfoP2,
+    ]
     
-    set_default_footer = add_default_footer(Build)
+    AliceCombatMechanics_pages = _build_placeholder_pages("Бойові механіки", 3)
+    AliceSkills_pages = _build_placeholder_pages("Навички", 6)
+    AliceMindscapeCinema_pages = _build_placeholder_pages("Mindscape Cinema", 3)
+    AliceProgression_pages = _build_placeholder_pages("Прокачування", 4)
+    AliceProfile_pages = _build_placeholder_pages("Профіль", 4)
 
-    # NavView відкриє пагінацію, коли знайде <key>_pages.
-    Main_pages = [Main, Skills, Build]
+    # Entering Alice immediately opens the first information section while
+    # keeping all character tabs available in the select menu.
+    Main = AliceBasicInfo_pages[0]
+    Main_pages = AliceBasicInfo_pages
+
+    # A regular embed is kept for the navigation contract; pagination uses the
+    # corresponding ``<key>_pages`` list when a section is selected.
+    AliceBasicInfo = AliceBasicInfo_pages[0]
+    AliceCombatMechanics = AliceCombatMechanics_pages[0]
+    AliceSkills = AliceSkills_pages[0]
+    AliceMindscapeCinema = AliceMindscapeCinema_pages[0]
+    AliceProgression = AliceProgression_pages[0]
+    AliceProfile = AliceProfile_pages[0]
 
     @classmethod
     def get_embed(cls, key: str) -> discord.Embed:
@@ -98,3 +186,7 @@ class AliceEmbed:
     @classmethod
     def get_pages(cls, key: str):
         return getattr(cls, f"{key}_pages", None)
+
+    @classmethod
+    def get_placeholder(cls, key: str, fallback: str) -> str:
+        return getattr(cls, f"{key}_placeholder", fallback)

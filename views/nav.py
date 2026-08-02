@@ -10,6 +10,40 @@ MAX_SELECT_OPTIONS = 25
 BACK_OPTION_VALUE = "BACK"
 
 
+def _get_visible_children(
+    history: List[str],
+    embed_cls: Type[Any],
+) -> tuple[List[Any], bool, str]:
+    """Keep a parent's tabs visible while browsing their paginated sections."""
+    current = history[-1]
+    children = embed_cls.get_children(current)
+
+    if children or len(history) <= 1 or not embed_cls.get_pages(current):
+        return children, False, current
+
+    parent_children = embed_cls.get_children(history[-2])
+    sibling_values = {
+        child.get("value") if isinstance(child, dict) else child[1]
+        for child in parent_children
+        if isinstance(child, (dict, tuple))
+    }
+    shows_sibling_tabs = current in sibling_values
+    menu_key = history[-2] if shows_sibling_tabs else current
+    return parent_children, shows_sibling_tabs, menu_key
+
+
+def _get_level_placeholder(
+    embed_cls: Type[Any],
+    key: str,
+    fallback: str,
+) -> str:
+    """Resolve an optional placeholder declared beside a level's children."""
+    get_placeholder = getattr(embed_cls, "get_placeholder", None)
+    if get_placeholder is None:
+        return fallback
+    return get_placeholder(key, fallback)
+
+
 class NavSelect(Select):
     def __init__(
         self,
@@ -26,7 +60,15 @@ class NavSelect(Select):
         self.page_state = page_state if page_state is not None else {}
 
         current = self.history[-1]
-        children = embed_cls.get_children(current)
+        children, self._shows_sibling_tabs, menu_key = _get_visible_children(
+            self.history,
+            embed_cls,
+        )
+        self._placeholder = _get_level_placeholder(
+            embed_cls,
+            menu_key,
+            placeholder,
+        )
         page_size = MAX_SELECT_OPTIONS - int(len(self.history) > 1)
         page_count = max(1, math.ceil(len(children) / page_size))
         self._option_page = max(0, min(option_page, page_count - 1))
@@ -68,7 +110,10 @@ class NavSelect(Select):
             await self._show_level(interaction)
             return
 
-        self.history.append(choice)
+        if self._shows_sibling_tabs:
+            self.history[-1] = choice
+        else:
+            self.history.append(choice)
         await self._show_level(interaction)
 
     async def _show_level(self, interaction: discord.Interaction):
@@ -111,7 +156,7 @@ def build_navigation_level(
     page_state: Dict[str, int],
 ) -> tuple[discord.Embed, View]:
     current = history[-1]
-    children = embed_cls.get_children(current)
+    children, _, _ = _get_visible_children(history, embed_cls)
     pages = embed_cls.get_pages(current)
     page_size = MAX_SELECT_OPTIONS - int(len(history) > 1)
 

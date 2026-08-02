@@ -7,15 +7,16 @@ from utils.config import Config
 from utils.misc import HEXtoColor
 
 from .agents import AliceEmbed
+from .routes import ALICE_ROUTE, FIRE_PLACEHOLDER_ROUTES
 
 FIRE_CHARACTERS_PER_PAGE = 24
 FIRE_PLACEHOLDER_CHARACTERS = [
     {
-        "label": f"Вогняний агент {index:02d}",
-        "value": f"FireAgent{index:02d}",
+        "label": route.display_name,
+        "value": route.key,
         "description": f"Тестовий агент №{index}",
     }
-    for index in range(1, 36)
+    for index, route in enumerate(FIRE_PLACEHOLDER_ROUTES, start=1)
 ]
 
 
@@ -65,6 +66,7 @@ def build_fire_character_pages(
 
 
 class CharactersMainEmbeds:
+    Main_placeholder = "Оберіть атрибут агента..."
     Main = discord.Embed(
         title="Агенти Zenless Zone Zero: Хто вони такі?",
         description="Агенти — це досвідчені найманці, що спеціалізуються на винищенні Еферіалів у Холлоу. У Zenless Zone Zero вони є головними дійовими персонажами, якими Ви керуєте в бою. Кожен Агент має унікальні бойові стилі, навички та історію, що допомагають йому ефективно боротися з ворогами та розкривати таємниці Нового Еріду.",
@@ -123,17 +125,23 @@ class CharactersMainEmbeds:
     PhysicalCharacters_children = [
         {
             "label": "Аліса",
-            "value": "Alice",
+            "value": ALICE_ROUTE.key,
             "emoji": "<:Agent_Alice_Thymefield_Icon:1422224006219698248>"
         }
     ]
+    PhysicalCharacters_placeholder = "Оберіть фізичного агента..."
 
-    # Адаптуємо окремий AliceEmbed до контракту NavView:
-    # Alice -> звичайний embed, Alice_pages -> пагінація.
+    # Головна сторінка Alice відкриває окремі тематичні розділи.
     Alice = AliceEmbed.get_embed("Main")
+    Alice_children = AliceEmbed.get_children("Main")
     Alice_pages = AliceEmbed.get_pages("Main")
+    Alice_placeholder = AliceEmbed.get_placeholder(
+        "Main",
+        "Оберіть розділ персонажа...",
+    )
 
     FireCharacters_children = FIRE_PLACEHOLDER_CHARACTERS
+    FireCharacters_placeholder = "Оберіть вогняного агента..."
     FireCharacters_pages = build_fire_character_pages(
         FireCharacters_children
     )
@@ -181,6 +189,25 @@ class CharactersMainEmbeds:
     @classmethod
     def get_pages(cls, key: str):
         return getattr(cls, f"{key}_pages", None)
+
+    @classmethod
+    def get_placeholder(cls, key: str, fallback: str) -> str:
+        return getattr(cls, f"{key}_placeholder", fallback)
+
+
+# Додаємо розділи Alice до спільного контракту навігації персонажів.
+for alice_section in AliceEmbed.get_children("Main"):
+    section_key = alice_section["value"]
+    setattr(
+        CharactersMainEmbeds,
+        section_key,
+        AliceEmbed.get_embed(section_key),
+    )
+    setattr(
+        CharactersMainEmbeds,
+        f"{section_key}_pages",
+        AliceEmbed.get_pages(section_key),
+    )
 
 
 for fire_character in FIRE_PLACEHOLDER_CHARACTERS:
