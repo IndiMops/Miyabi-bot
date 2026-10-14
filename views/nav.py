@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional, Type
 import discord
 from discord.ui import Select, View
 
-from views.pagination import PagginationView
+from views.pagination import PagginationView, TimeoutView
 
 MAX_SELECT_OPTIONS = 25
 BACK_OPTION_VALUE = "BACK"
@@ -123,16 +123,19 @@ class NavSelect(Select):
             self._placeholder,
             self.page_state,
         )
+        view.bind_to_message(interaction.message)
+        if self.view is not None:
+            self.view.stop()
         await interaction.response.edit_message(embed=embed, view=view)
 
 
-class NavView(View):
+class NavView(TimeoutView):
     def __init__(
         self,
         history: List[str],
         embed_cls: Type[Any],
         placeholder: str = "Select an option...",
-        timeout: Optional[float] = 120.0,
+        timeout: Optional[float] = None,
         *,
         page_state: Optional[Dict[str, int]] = None,
     ):
@@ -148,7 +151,6 @@ class NavView(View):
             page_state=self.page_state,
         ))
 
-
 def build_navigation_level(
     history: List[str],
     embed_cls: Type[Any],
@@ -162,7 +164,6 @@ def build_navigation_level(
 
     if pages:
         initial_page = min(page_state.get(current, 0), len(pages) - 1)
-
         if len(children) > page_size:
             expected_page_count = math.ceil(len(children) / page_size)
             if len(pages) != expected_page_count:

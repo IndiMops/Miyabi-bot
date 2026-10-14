@@ -5,10 +5,38 @@ from typing import Optional
 import discord
 from discord.ui import View
 
+from utils.config import Config
 from utils.logger import logger
 
 
-class PagginationView(View):
+class TimeoutView(View):
+    """A view that disables its components when its configured timeout expires."""
+
+    def __init__(self, *, timeout: Optional[float] = None) -> None:
+        if timeout is None:
+            timeout = float(Config.PUBLIC.bot.nav_menu_timeout)
+        super().__init__(timeout=timeout)
+        self._message: Optional[discord.InteractionMessage] = None
+
+    def bind_to_message(self, message: discord.InteractionMessage) -> None:
+        self._message = message
+
+    async def on_timeout(self) -> None:
+        for item in self.children:
+            item.disabled = True
+
+        if self._message is None:
+            return
+
+        try:
+            await self._message.edit(view=self)
+        except discord.HTTPException as error:
+            logger.opt(exception=error).warning(
+                "Could not disable navigation after timeout"
+            )
+
+
+class PagginationView(TimeoutView):
     def __init__(
         self,
         embeds: Sequence[discord.Embed],
@@ -18,7 +46,7 @@ class PagginationView(View):
             Callable[[int], discord.ui.Select]
         ] = None,
         initial_page: int = 0,
-        timeout: Optional[float] = 120.0,
+        timeout: Optional[float] = None,
     ) -> None:
         if not embeds:
             raise ValueError("PagginationView requires at least one embed")

@@ -7,10 +7,27 @@ from embeds.wiki.characters import (
     find_agent_route,
     search_agent_routes,
 )
+from utils.config import Config
 from views.nav import BACK_OPTION_VALUE, build_navigation_level
 
 
 class CharacterRouteTests(unittest.TestCase):
+    def test_configured_timeout_applies_to_navigation_and_pagination(self) -> None:
+        expected_timeout = float(Config.PUBLIC.bot.nav_menu_timeout)
+
+        _, navigation_view = build_navigation_level(
+            ["Main"], CharactersMainEmbeds, "Fallback", {}
+        )
+        _, pagination_view = build_navigation_level(
+            ["Main", "PhysicalCharacters", "Alice"],
+            CharactersMainEmbeds,
+            "Fallback",
+            {},
+        )
+
+        self.assertEqual(navigation_view.timeout, expected_timeout)
+        self.assertEqual(pagination_view.timeout, expected_timeout)
+
     def test_alice_has_expected_paginated_sections(self) -> None:
         expected_page_counts = {
             "AliceBasicInfo": 2,
@@ -151,6 +168,15 @@ class CharacterRouteTests(unittest.TestCase):
 
 
 class CharacterAutocompleteTests(unittest.IsolatedAsyncioTestCase):
+    async def test_timeout_disables_every_navigation_component(self) -> None:
+        _, view = build_navigation_level(
+            ["Main"], CharactersMainEmbeds, "Fallback", {}
+        )
+
+        await view.on_timeout()
+
+        self.assertTrue(all(item.disabled for item in view.children))
+
     async def test_command_exposes_agent_autocomplete(self) -> None:
         command = CharactersCommand.characters
         choices = await CharactersCommand(None).agent_autocomplete(

@@ -86,7 +86,7 @@ class AliceEmbed:
     
 
     BasicInfoP1 = discord.Embed(
-        title="Основна інформація — 1/2",
+        title="Основна інформація: Огляд — 1/2",
         description="Alice Thymefield — спадкоємиця престижної родини Thymefield, талановита фехтувальниця та дослідниця Ether science. Вона навчається у Celestia School for Girls, є зразковою ученицею та входить до складу Spook Shack.\n\nПопри сильний страх перед привидами й надприродними явищами, Alice відчуває до них майже нездорову цікавість. У бою вона виступає як Physical Anomaly DPS, накопичує ресурс Blade Etiquette та витрачає його на заряджену атаку Starshine Waltz, здатну активувати особливий ефект Polarity Assault.",
         color=HEXtoColor(ALICE_COLOR),
     ).set_image(
@@ -130,11 +130,8 @@ class AliceEmbed:
     
     # Second page of the Basic Info section is a placeholder for future content.
     BasicInfoP2 = discord.Embed(
-        title="Основна інформація — 2/2",
-        description=(
-            "*Характеристики на 60 рівні з повністю відкритим Core Skill F, без W-Engine і Drive Discs.*\n\n"
-            "- HP: 7 673\n- ATK: 880\n- DEF: 606\n- Impact: 86\n- CRIT Rate: 5%\n- CRIT DMG: 50%\n- Anomaly Mastery: 142\n- Anomaly Proficiency: 118\n- PEN Ratio: 0%\n- Energy Regen: 1,2"
-        ),
+        title="Основна інформація: Характеристики — 2/2",
+        description="*Характеристики на 60 рівні з повністю відкритим Core Skill F, без W-Engine і Drive Discs.*\n\n",
         color=HEXtoColor(ALICE_COLOR)
     ).set_image(
         url="https://i.imgur.com/4kwWaeR.png"
@@ -142,20 +139,81 @@ class AliceEmbed:
     
     fields = [
         {
+            "name": "⠀",
+            "value": "- HP: 7 673\n- ATK: 880\n- DEF: 606\n- Impact: 86\n- CRIT Rate: 5%\n- CRIT DMG: 50%",
+            "inline": True
+        },
+        {
+            "name": "⠀",
+            "value": "- Anomaly Mastery: 142\n- Anomaly Proficiency: 118\n- PEN Ratio: 0%\n- Energy Regen: 1,2",
+            "inline": True
+        },
+        {
             "name": "Технічна примітка",
-            "value": "Без бонусів Core Skill її базові характеристики на 60 рівні становлять приблизно:\n\nBase ATK: 805,7\nAnomaly Mastery: 106\n\nCore Skill F сумарно надає:\n\n- +75 Base ATK\n\n- +36 Anomaly Mastery.\n\n*Саме тому в одних базах можна побачити 806 ATK і 106 AM, а в інших 880 ATK і 142 AM. Ні, база даних не збожеволіла остаточно. Просто одна показує чистий рівень, а інша враховує Core Skill.*"
+            "value": "Без бонусів Core Skill її базові характеристики на 60 рівні становлять приблизно:\n- Base ATK: 805,7\n- Anomaly Mastery: 106\n\nCore Skill F сумарно надає:\n- +75 Base ATK\n- +36 Anomaly Mastery.\n\n*Саме тому в одних базах можна побачити 806 ATK і 106 AM, а в інших 880 ATK і 142 AM. Просто одна показує чистий рівень, а інша враховує Core Skill.*",
+            "inline": False
         }
     ]
     add_fields(BasicInfoP2, fields)
     
     _decorate_alice_embed(BasicInfoP2)
 
+
+    # Second menu "Battle Mechanics"
+    BattleMechanicsP1 = discord.Embed(
+        title="Бойові механіки: Стиль гри — 1/3",
+        description="Alice є активним Anomaly DPS, ігровий процес якого обертається навколо трьох елементів:",
+        color=HEXtoColor(ALICE_COLOR)
+    ).set_image(
+        url="https://i.imgur.com/R1YEorB.png"
+    )
+    
+    fields = [
+        {
+            "name": "Blade Etiquette",
+            "value": "Унікальний ресурс Alice, потрібний для зарядженої Базових атак.",
+            "inline": False
+        },
+        {
+            "name": "Starshine Waltz",
+            "value": "Потужна заряджена атака, що витрачає від однієї до трьох смуг Blade Etiquette.",
+            "inline": False
+        },
+        {
+            "name": "Polarity Assault",
+            "value": "Особливий Assault, який не потребує повторного заповнення шкали Physical Anomaly та може викликати Disorder навіть разом з іншим Physical Anomaly.",
+            "inline": False
+        },
+        {
+            "name": "Спрощений бойовий цикл:",
+            "value": (
+                "1. Накопичити Blade Etiquette атаками та активаціями аномалій.\n"
+                "2. Викликати Assault і Disorder.\n"
+                "3. Накопичити 300 Blade Etiquette.\n"
+                "4. Використати повністю заряджену Starshine Waltz.\n"
+                "5. Активувати Polarity Assault.\n"
+                "6. Використати Ultimate для відновлення 200 Blade Etiquette.\n"
+                "7. Повторити цикл."
+            ),
+            "inline": False
+        },
+        {
+            "name": "Примітка",
+            'value': "*Найкраще використовувати Starshine Waltz із повним зарядом у три смуги. Використання однієї чи двох смуг можливе, але не активує головну частину її механіки — Polarity Assault.*",
+            "inline": False
+        }
+    ]
+
+    add_fields(BattleMechanicsP1, fields)
+    _decorate_alice_embed(BattleMechanicsP1)
+    
     AliceBasicInfo_pages = [
         BasicInfoP1,
-        BasicInfoP2,
     ]
     
-    AliceCombatMechanics_pages = _build_placeholder_pages("Бойові механіки", 3)
+    AliceCombatMechanics_pages = [
+        BattleMechanicsP1
+    ]
     AliceSkills_pages = _build_placeholder_pages("Навички", 6)
     AliceMindscapeCinema_pages = _build_placeholder_pages("Mindscape Cinema", 3)
     AliceProgression_pages = _build_placeholder_pages("Прокачування", 4)

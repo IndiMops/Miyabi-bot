@@ -194,7 +194,6 @@ class CharactersMainEmbeds:
     def get_placeholder(cls, key: str, fallback: str) -> str:
         return getattr(cls, f"{key}_placeholder", fallback)
 
-
 # Додаємо розділи Alice до спільного контракту навігації персонажів.
 for alice_section in AliceEmbed.get_children("Main"):
     section_key = alice_section["value"]

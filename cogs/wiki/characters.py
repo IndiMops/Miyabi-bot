@@ -38,6 +38,7 @@ class CharactersCommand(commands.Cog):
     @app_commands.autocomplete(
         agent=agent_autocomplete,
     )
+    @app_commands.allowed_installs(guilds=True, users=True)
     async def characters(
         self,
         interaction: discord.Interaction,
@@ -70,6 +71,7 @@ class CharactersCommand(commands.Cog):
             view=view,
             ephemeral=True,
         )
+        view.bind_to_message(await interaction.original_response())
 
 
 async def setup(bot: commands.Bot):

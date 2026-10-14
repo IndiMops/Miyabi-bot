@@ -3,7 +3,8 @@
         "name": "Miyabi",
         "prefix": ".",
         "version": "0.0.1",
-        "last_update": 1785684158,
+        "last_update": 1786466846,
+        "nav_menu_timeout": 600.0,
         "color": {
             "default": "#4c5d6d",
             "error": "#DD2E44",
@@ -53,7 +54,7 @@
             },
             {
                 "name": "characters",
-                "id": 1533487024022098082
+                "id": 1536774376991629382
             }
         ]
     },
