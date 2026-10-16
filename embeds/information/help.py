@@ -1,4 +1,5 @@
-# embeds\commands_help.py
+"""Embed definitions used by the help command."""
+
 from typing import List
 import datetime
 

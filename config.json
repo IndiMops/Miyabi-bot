@@ -3,12 +3,20 @@
         "name": "Miyabi",
         "prefix": ".",
         "version": "0.0.1",
-        "last_update": 1758384622,
+        "last_update": 1786466846,
+        "nav_menu_timeout": 600.0,
         "color": {
             "default": "#4c5d6d",
             "error": "#DD2E44",
             "info": "#41e332",
-            "warn": "#FFCC4D"
+            "warn": "#FFCC4D",
+            "atribute_colors": {
+                "physical": "#D7D9DD",
+                "fire": "#FF5A45",
+                "ice": "#66C7FF",
+                "electric": "#6F8CFF",
+                "ether": "#B56CFF"
+            }
         },
         "assets": {
             "avatar": "https://cdn.discordapp.com/avatars/1397204614499012738/1438de5de147c34207d2b9474e19f1ea.png?size=1024",
@@ -29,10 +37,6 @@
                 "id": 1398031179495506121
             },
             {
-                "name": "deep_menu",
-                "id": 1399181313457651722
-            },
-            {
                 "name": "pagination_test",
                 "id": 1399181313457651723
             },
@@ -43,6 +47,14 @@
             {
                 "name": "help",
                 "id": 1417949694104961208
+            },
+            {
+                "name": "deep_menu",
+                "id": 1422193141578203332
+            },
+            {
+                "name": "characters",
+                "id": 1536774376991629382
             }
         ]
     },
