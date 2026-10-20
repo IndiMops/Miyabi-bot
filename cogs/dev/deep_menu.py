@@ -3,7 +3,7 @@ from discord.ext import commands
 from discord import app_commands
 
 from views.nav import NavView
-from embeds.deep_embeds import DeepEmbeds
+from embeds.dev import DeepEmbeds
 
 
 class SplitMenuCog(commands.Cog):
@@ -16,6 +16,7 @@ class SplitMenuCog(commands.Cog):
         embed = DeepEmbeds.get_embed("Main")
         view = NavView(history, DeepEmbeds, placeholder="Select menu...")
         await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+        view.bind_to_message(await interaction.original_response())
 
 
 async def setup(bot: commands.Bot):

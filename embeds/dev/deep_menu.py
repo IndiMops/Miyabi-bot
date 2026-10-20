@@ -1,3 +1,5 @@
+"""Embed tree used by the deep-menu development command."""
+
 from typing import List
 
 import discord

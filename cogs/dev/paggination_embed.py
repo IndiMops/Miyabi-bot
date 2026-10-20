@@ -38,6 +38,7 @@ class EmbedTest(commands.Cog):
 
             view = PaginationView(embeds)
             await interaction.response.send_message(embed=view.initial, view=view, ephemeral=True)
+            view.bind_to_message(await interaction.original_response())
         except Exception:
             logger.exception("An error occurred in pagination_test command")
             response = (

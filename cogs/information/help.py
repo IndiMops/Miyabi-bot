@@ -4,14 +4,14 @@ import datetime
 import discord
 from discord import app_commands
 from discord.ext import commands
-from discord.ui import View, Select
+from discord.ui import Select
 
+from embeds.information import HelpCategory as Categories
+from embeds.information import HelpCommands as Commands
 from utils.config import Config
 from utils.logger import logger
-from utils.misc import fetch_slash_commands, HEXtoColor
-from views.pagination import PaginationView
-
-from embeds.commands_help import CommandsHelpEmbeds, HelpCommands as Commands, HelpCategory as Categories
+from utils.misc import HEXtoColor, fetch_slash_commands
+from views.pagination import PaginationView, TimeoutView
 
 
 class HelpCommand(commands.Cog):
@@ -105,25 +105,40 @@ class HelpCommand(commands.Cog):
                     if pages:
                         if len(pages) > 1:
                             menu.callback = callback
-                            await interaction.response.edit_message(
+                            if menu.view is not None:
+                                menu.view.stop()
+                            pagination_view = PaginationView(pages, menu)
+                            await interaction.response.send_message(
                                 embed=pages[0],
-                                view=PaginationView(pages),
+                                view=pagination_view,
+                                ephemeral=True,
+                            )
+                            pagination_view.bind_to_message(
+                                await interaction.original_response()
                             )
                         else:
-                            view = View()
+                            current_view = menu.view
+                            next_view = TimeoutView()
                             if menu:
-                                view.add_item(menu)
-                            await interaction.response.edit_message(embed=pages[0], view=view)
+                                next_view.add_item(menu)
+                            next_view.bind_to_message(interaction.message)
+                            if current_view is not None:
+                                current_view.stop()
+                            await interaction.response.edit_message(
+                                embed=pages[0],
+                                view=next_view,
+                            )
                     else:
                         await interaction.response.edit_message(
                             embed=Commands.get_embed("CommandsNotFound")
                         )
 
                 menu.callback = callback
-                view = View()
+                view = TimeoutView()
                 view.add_item(menu)
                 
                 await interaction.response.send_message(embed=Commands.get_embed("Main"), view=view, ephemeral=True)
+                view.bind_to_message(await interaction.original_response())
             elif command_name:
                 if Commands.has_embed(command_name):
                     await interaction.response.send_message(embed=Commands.get_embed(command_name), ephemeral=True)

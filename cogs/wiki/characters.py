@@ -1,23 +1,77 @@
 import discord
-from discord.ext import commands
 from discord import app_commands
+from discord.ext import commands
 
-from views.nav import NavView
+from embeds.wiki.characters import (
+    CharactersMainEmbeds as CharactersEmbeds,
+    find_agent_route,
+    search_agent_routes,
+)
 from utils.logger import logger
-
-from embeds.commands_characters import CharactersMainEmbeds as CharactersEmbeds
+from views.nav import build_navigation_level
 
 
 class CharactersCommand(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @app_commands.command(name="characters", description="Get information about characters.")
-    async def characters(self, interaction: discord.Interaction):
+    async def agent_autocomplete(
+        self,
+        interaction: discord.Interaction,
+        current: str,
+    ) -> list[app_commands.Choice[str]]:
+        return [
+            app_commands.Choice(
+                name=route.display_name,
+                value=route.key,
+            )
+            for route in search_agent_routes(current)
+        ]
+
+    @app_commands.command(
+        name="characters",
+        description="Get information about characters.",
+    )
+    @app_commands.describe(
+        agent="Почніть вводити ім'я агента для швидкого переходу.",
+    )
+    @app_commands.autocomplete(
+        agent=agent_autocomplete,
+    )
+    @app_commands.allowed_installs(guilds=True, users=True)
+    async def characters(
+        self,
+        interaction: discord.Interaction,
+        agent: str | None = None,
+    ):
         history = ["Main"]
-        embed = CharactersEmbeds.get_embed("Main")
-        view = NavView(history, CharactersEmbeds, placeholder="Виберіть атрибут агента...")
-        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+
+        if agent is not None:
+            route = find_agent_route(agent)
+
+            if route is None:
+                await interaction.response.send_message(
+                    f"Сторінку агента `{agent}` не знайдено. "
+                    "Скористайтеся підказками autocomplete.",
+                    ephemeral=True,
+                )
+                return
+
+            history = route.history
+
+        embed, view = build_navigation_level(
+            history,
+            CharactersEmbeds,
+            "Виберіть елемент персонажа...",
+            {},
+        )
+
+        await interaction.response.send_message(
+            embed=embed,
+            view=view,
+            ephemeral=True,
+        )
+        view.bind_to_message(await interaction.original_response())
 
 
 async def setup(bot: commands.Bot):
