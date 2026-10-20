@@ -10,7 +10,7 @@
             "error": "#DD2E44",
             "info": "#41e332",
             "warn": "#FFCC4D",
-            "atribute_colors": {
+            "attribute_colors": {
                 "physical": "#D7D9DD",
                 "fire": "#FF5A45",
                 "ice": "#66C7FF",
