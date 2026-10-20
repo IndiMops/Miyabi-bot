@@ -43,8 +43,13 @@ class InfoCommand(commands.Cog):
             )
             
             await interaction.response.send_message(embed=embed, ephemeral=True)
-        except Exception as e:
-            logger.error(f"Error in info command: {e}")
+        except Exception:
+            logger.exception("Error while handling the info command")
+            if not interaction.response.is_done():
+                await interaction.response.send_message(
+                    "Не вдалося виконати команду. Спробуйте ще раз.",
+                    ephemeral=True,
+                )
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(InfoCommand(bot))

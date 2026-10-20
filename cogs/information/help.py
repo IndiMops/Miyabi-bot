@@ -11,7 +11,7 @@ from embeds.information import HelpCommands as Commands
 from utils.config import Config
 from utils.logger import logger
 from utils.misc import HEXtoColor, fetch_slash_commands
-from views.pagination import PagginationView, TimeoutView
+from views.pagination import PaginationView, TimeoutView
 
 
 class HelpCommand(commands.Cog):
@@ -42,7 +42,7 @@ class HelpCommand(commands.Cog):
     @app_commands.rename(command_name="command", command_category="category")
     async def help(self, interaction: discord.Interaction, command_name: str = None, command_category: str = None):
         try:
-            if command_name == None and command_category == None:
+            if command_name is None and command_category is None:
                 menu = Select(
                     placeholder="Оберіть категорію...",
                     options=[
@@ -107,7 +107,7 @@ class HelpCommand(commands.Cog):
                             menu.callback = callback
                             if menu.view is not None:
                                 menu.view.stop()
-                            pagination_view = PagginationView(pages, menu)
+                            pagination_view = PaginationView(pages, menu)
                             await interaction.response.send_message(
                                 embed=pages[0],
                                 view=pagination_view,
@@ -129,7 +129,9 @@ class HelpCommand(commands.Cog):
                                 view=next_view,
                             )
                     else:
-                        await interaction.responce.edit_message(embed=Commands.get_embed("CommandsNotDound"))
+                        await interaction.response.edit_message(
+                            embed=Commands.get_embed("CommandsNotFound")
+                        )
 
                 menu.callback = callback
                 view = TimeoutView()
@@ -147,8 +149,13 @@ class HelpCommand(commands.Cog):
                     await interaction.response.send_message(embed=Categories.get_embed(command_category), ephemeral=True)
                 else:
                     await interaction.response.send_message(f"Категорію {command_category} не знайдено.", ephemeral=True)
-        except Exception as e:
-            print(e)
+        except Exception:
+            logger.exception("Error while handling the help command")
+            if not interaction.response.is_done():
+                await interaction.response.send_message(
+                    "Не вдалося виконати команду. Спробуйте ще раз.",
+                    ephemeral=True,
+                )
 
 
 async def setup(bot: commands.Bot):

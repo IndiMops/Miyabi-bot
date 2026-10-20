@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional, Type
 import discord
 from discord.ui import Select, View
 
-from views.pagination import PagginationView, TimeoutView
+from views.pagination import PaginationView, TimeoutView
 
 MAX_SELECT_OPTIONS = 25
 BACK_OPTION_VALUE = "BACK"
@@ -184,13 +184,13 @@ def build_navigation_level(
                     page_state=page_state,
                 )
 
-            view = PagginationView(
+            view = PaginationView(
                 pages,
                 select_menu_factory=select_menu_factory,
                 initial_page=initial_page,
             )
         else:
-            view = PagginationView(
+            view = PaginationView(
                 pages,
                 NavSelect(
                     history,

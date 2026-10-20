@@ -36,7 +36,7 @@ class TimeoutView(View):
             )
 
 
-class PagginationView(TimeoutView):
+class PaginationView(TimeoutView):
     def __init__(
         self,
         embeds: Sequence[discord.Embed],
@@ -49,7 +49,7 @@ class PagginationView(TimeoutView):
         timeout: Optional[float] = None,
     ) -> None:
         if not embeds:
-            raise ValueError("PagginationView requires at least one embed")
+            raise ValueError("PaginationView requires at least one embed")
 
         super().__init__(timeout=timeout)
 
@@ -64,7 +64,7 @@ class PagginationView(TimeoutView):
     def _update_items(self) -> None:
         self.first.disabled = self._current_page == 0
         self.previous.disabled = self._current_page == 0
-        self.curent_page.label = f"{self._current_page + 1}/{self._len}"
+        self.current_page.label = f"{self._current_page + 1}/{self._len}"
         self.next.disabled = self._current_page == self._len - 1
         self.last.disabled = self._current_page == self._len - 1
 
@@ -108,7 +108,7 @@ class PagginationView(TimeoutView):
             await self._show_page(interaction)
 
     @discord.ui.button(style=discord.ButtonStyle.danger,  disabled=True)
-    async def curent_page(self, interaction: discord.Interaction, _):
+    async def current_page(self, interaction: discord.Interaction, _):
         pass
 
     @discord.ui.button(emoji="▶️")
@@ -122,6 +122,25 @@ class PagginationView(TimeoutView):
         self._current_page = self._len - 1
         await self._show_page(interaction)
 
+    async def on_error(
+        self,
+        interaction: discord.Interaction,
+        error: Exception,
+        item: discord.ui.Item,
+    ) -> None:
+        logger.opt(exception=error).error(
+            f"Pagination interaction failed for {item!r}"
+        )
+        if not interaction.response.is_done():
+            await interaction.response.send_message(
+                "Не вдалося змінити сторінку. Спробуйте ще раз.",
+                ephemeral=True,
+            )
+
     @property
     def initial(self) -> discord.Embed:
         return self._embeds[self._current_page]
+
+
+# Temporary compatibility alias for older imports.
+PagginationView = PaginationView
