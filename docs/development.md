@@ -149,7 +149,7 @@ DEBUG=False
 - недоступний custom emoji;
 - порожнє або невалідне поле embed;
 - `value` у select не збігається з назвою embed attribute;
-- view уже досяг 120-секундного timeout.
+- view уже досяг timeout, заданого в `config.json` (зараз 600 секунд).
 
 ### Логи створилися не в репозиторії
 
