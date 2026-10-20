@@ -209,6 +209,7 @@ class AliceEmbed:
     
     AliceBasicInfo_pages = [
         BasicInfoP1,
+        BasicInfoP2,
     ]
     
     AliceCombatMechanics_pages = [
