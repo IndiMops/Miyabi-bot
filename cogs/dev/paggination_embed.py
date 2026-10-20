@@ -38,6 +38,7 @@ class EmbedTest(commands.Cog):
 
             view = PagginationView(embeds, select_menu=None)
             await interaction.response.send_message(embed=view.initial, view=view, ephemeral=True)
+            view.bind_to_message(await interaction.original_response())
         except Exception as e:
             logger.error(f"An error occurred in embed_test command: {e}")
             await interaction.response.send_message(
