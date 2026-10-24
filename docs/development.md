@@ -13,7 +13,7 @@ python -m pip install pytest ruff
 Запусти перевірки, які відповідають поточному CI:
 
 ```powershell
-python -m compileall -q bot.py cogs embeds utils views
+python -m compileall -q bot.py cogs embeds utils views status_service
 python -m ruff check --select E9,F63,F7,F82 .
 python -m pytest
 ```

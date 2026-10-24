@@ -13,6 +13,7 @@
 3. [Архітектура та розширення](architecture.md)
 4. [Наявні Discord-команди](commands.md)
 5. [Розробка, перевірки й діагностика](development.md)
+6. [Моніторинг статусу](status-monitoring.md)
 
 Окремо в каталозі зберігаються
 [Privacy Policy](privacy.md) і [Terms of Service](terms.md).

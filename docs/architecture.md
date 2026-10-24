@@ -2,8 +2,9 @@
 
 [← До змісту](README.md)
 
-Проєкт є невеликим монолітним Discord-ботом. Окремого серверного API, бази
-даних або фонового worker-процесу немає.
+Проєкт є невеликим монолітним Discord-ботом. Бази даних і публічного API
+немає. Поруч живе окремий процес [`status_service`](status-monitoring.md),
+який приймає heartbeat бота й оновлює повідомлення статусу в Discord.
 
 ## Карта проєкту
 
@@ -13,6 +14,7 @@ Miyabi-bot/
 ├── config.json               # публічна конфігурація
 ├── requirements.txt          # runtime-залежності
 ├── cogs/
+│   ├── core/                 # status heartbeat (без команд)
 │   ├── information/          # /help і /info
 │   ├── wiki/                 # /characters
 │   └── dev/                  # тестові команди
@@ -30,7 +32,9 @@ Miyabi-bot/
 ├── utils/
 │   ├── config.py             # .env + config.json
 │   ├── logger.py             # Loguru і standard logging
+│   ├── heartbeat.py          # payload і доставка heartbeat
 │   └── misc.py               # JSON, кольори, версія, fetch commands
+├── status_service/           # окремий процес моніторингу статусу
 ├── tests/                    # локальні unit-тести
 └── docs/                     # документація
 ```
