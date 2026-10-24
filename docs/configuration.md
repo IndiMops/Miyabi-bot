@@ -16,6 +16,9 @@
 |---|---:|---|---|
 | `DISCORD_BOT_TOKEN` | так | немає | Секретний токен Discord Bot. Без нього `Config.require_token()` зупинить запуск із помилкою. |
 | `DEBUG` | ні | `False` | Рівень консольних логів і керування завантаженням вимкнених cog-папок. |
+| `STATUS_HEARTBEAT_URL`, `STATUS_HEARTBEAT_SECRET` та інші `STATUS_*` | ні | вимкнено | Heartbeat у status service. Див. [Моніторинг статусу](status-monitoring.md). |
+
+Шаблон без секретів — [`.env.example`](../.env.example).
 
 `DEBUG` стає істинним лише тоді, коли значення дорівнює `true` без урахування
 регістру. Значення `1`, `yes` або `on` у поточній реалізації означають `False`.
