@@ -26,6 +26,7 @@ class MiyabiBot(commands.Bot):
 
 intents = discord.Intents.default()
 intents.guilds = True
+intents.members = True
 
 bot = MiyabiBot(
     command_prefix=Config.PUBLIC.bot.prefix,
@@ -74,10 +75,7 @@ async def load_extensions(target_bot: commands.Bot) -> None:
                 rel_path = os.path.relpath(os.path.join(root, file), cogs_path)
                 module = f"cogs.{rel_path}".replace(os.sep, ".").removesuffix(".py")
 
-                if (
-                    not Config.DEBUG
-                    and is_disabled_extension(module, disabled_folders)
-                ):
+                if not Config.DEBUG and is_disabled_extension(module, disabled_folders):
                     logger.info(f"Skipped disabled extension: {module}")
                     continue
 

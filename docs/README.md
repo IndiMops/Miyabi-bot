@@ -1,61 +1,62 @@
-# Технічна документація Miyabi Bot
+# Miyabi Bot Technical Documentation
 
-Цей каталог — коротка практична довідка, щоб після перерви швидко згадати, як
-влаштований проєкт, як його запустити та де змінювати потрібну поведінку.
+This directory is a short practical reference for quickly recalling, after a
+break, how the project is structured, how to run it, and where to change a
+given behavior.
 
-Документація описує поточну реалізацію станом на **24 липня 2026 року**.
-Джерелом істини завжди залишається код.
+The documentation describes the implementation as of **July 24, 2026**. The
+code always remains the source of truth.
 
-## З чого почати
+## Where to start
 
-1. [Перший запуск і повернення до роботи](getting-started.md)
-2. [Конфігурація](configuration.md)
-3. [Архітектура та розширення](architecture.md)
-4. [Наявні Discord-команди](commands.md)
-5. [Розробка, перевірки й діагностика](development.md)
+1. [First run and getting back to work](getting-started.md)
+2. [Configuration](configuration.md)
+3. [Architecture and extension](architecture.md)
+4. [Available Discord commands](commands.md)
+5. [Development, checks, and diagnostics](development.md)
+6. [Status monitoring](status-monitoring.md)
 
-Окремо в каталозі зберігаються
-[Privacy Policy](privacy.md) і [Terms of Service](terms.md).
+The directory also contains the
+[Privacy Policy](privacy.md) and [Terms of Service](terms.md).
 
-## Суть проєкту за хвилину
+## The project in a minute
 
-Miyabi Bot — невеликий Discord-бот для спільнот **Zenless Zone Zero**. Він
-написаний на Python із використанням `discord.py` і зараз працює як статичний
-інтерактивний довідник:
+Miyabi Bot is a small Discord bot for **Zenless Zone Zero** communities. It is
+written in Python using `discord.py` and currently works as a static
+interactive reference:
 
-- [`bot.py`](../bot.py) запускає клієнт Discord, завантажує модулі та
-  синхронізує slash-команди;
-- [`cogs/`](../cogs) містить команди;
-- [`embeds/`](../embeds) містить текст і оформлення відповідей;
-- [`views/`](../views) реалізує select-меню та пагінацію;
-- [`utils/`](../utils) відповідає за конфігурацію, логи й допоміжні функції;
-- `.env` містить локальні змінні середовища та секретний токен;
-- [`config.json`](../config.json) містить публічні налаштування.
+- [`bot.py`](../bot.py) starts the Discord client, loads modules, and
+  syncs slash commands;
+- [`cogs/`](../cogs) contains the commands;
+- [`embeds/`](../embeds) contains the text and layout of responses;
+- [`views/`](../views) implements select menus and pagination;
+- [`utils/`](../utils) handles configuration, logging, and helper functions;
+- `.env` holds local environment variables and the secret token;
+- [`config.json`](../config.json) holds public settings.
 
-У проєкті поки немає бази даних, власного HTTP API, збереження стану
-користувачів або реального завантаження wiki-даних. Контент команд зберігається
-безпосередньо в Python-файлах із embeds.
+The project does not yet have a database, its own HTTP API, persisted user
+state, or real loading of wiki data. Command content is stored directly in
+Python files with embeds.
 
-## Що вже працює
+## What already works
 
-У звичайному режимі (`DEBUG=False`) завантажуються:
+In normal mode (`DEBUG=False`) the following are loaded:
 
 - `/info`;
 - `/help`;
-- `/characters` — містить сторінки Аліси, демонстраційну пагінацію для
-  35 вогняних агентів-заглушок і безпечні заглушки інших атрибутів.
+- `/characters` — contains Alice's pages, demo pagination for 35 placeholder
+  fire agents, and safe placeholders for the other attributes.
 
-У debug-режимі додатково завантажуються тестові `/ping`, `/pagination_test` і
-`/deep_menu`. Вони **не мають owner-перевірки**, тому при глобальній
-синхронізації доступні всім користувачам бота. Для звичайного запуску залишай
-`DEBUG=False`.
+In debug mode the test commands `/ping`, `/pagination_test`, and `/deep_menu`
+are loaded as well. They **have no owner check**, so with global sync they are
+available to every user of the bot. Keep `DEBUG=False` for normal runs.
 
-Заплановані в кореневому README локалізація та mini-RPG система ще не
-реалізовані.
+Localization and the mini-RPG system planned in the root README are not yet
+implemented.
 
-## Швидке повернення до проєкту
+## Getting back to the project quickly
 
-Якщо наявне локальне середовище `venv` не видалене:
+If the existing local `venv` has not been deleted:
 
 ```powershell
 cd D:\Code\Miyabi-bot
@@ -64,11 +65,11 @@ python -m pytest -q
 python bot.py
 ```
 
-Перед запуском перевір:
+Before running, check:
 
-- чи є в корені `.env`;
-- чи встановлений `DISCORD_BOT_TOKEN`;
-- чи потрібні тобі debug-команди;
-- чи немає важливих незакомічених змін через `git status`.
+- that `.env` exists in the root;
+- that `DISCORD_BOT_TOKEN` is set;
+- whether you need the debug commands;
+- that there are no important uncommitted changes, via `git status`.
 
-Не додавай `.env` або токен у Git, документацію, issue чи логи.
+Never add `.env` or the token to Git, documentation, issues, or logs.
