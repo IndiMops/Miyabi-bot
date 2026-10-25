@@ -1,10 +1,11 @@
-# Моніторинг статусу
+# Status Monitoring
 
-[← До змісту](README.md)
+[← Back to contents](README.md)
 
-Бот періодично надсилає heartbeat в окремий процес `status_service`. Той за
-свіжістю heartbeat визначає стан і підтримує **одне** повідомлення в
-окремому текстовому каналі Discord, редагуючи його через webhook.
+The bot periodically sends a heartbeat to a separate `status_service`
+process. Based on heartbeat freshness, the service determines the state and
+maintains **one** message in a dedicated Discord text channel, editing it via
+a webhook.
 
 ```text
 Miyabi Bot ──POST /heartbeat (Bearer secret)──▶ status_service ──webhook edit──▶ #status
@@ -12,160 +13,168 @@ Miyabi Bot ──POST /heartbeat (Bearer secret)──▶ status_service ──w
                                     Uptime Kuma ──GET /health
 ```
 
-## Компоненти
+## Components
 
-| Файл | Відповідальність |
+| File | Responsibility |
 |---|---|
-| [`utils/heartbeat.py`](../utils/heartbeat.py) | Збір стану клієнта й доставка heartbeat (timeout, retry з backoff, без винятків назовні). |
-| [`cogs/core/status_heartbeat.py`](../cogs/core/status_heartbeat.py) | Цикл heartbeat у життєвому циклі бота й shutdown-heartbeat при `close()`. |
-| [`status_service/evaluator.py`](../status_service/evaluator.py) | Валідація payload і правила станів. |
-| [`status_service/store.py`](../status_service/store.py) | JSON state-файл: ID повідомлення й останній heartbeat (атомарний запис). |
-| [`status_service/publisher.py`](../status_service/publisher.py) | Embed статусу й створення/редагування одного webhook-повідомлення. |
-| [`status_service/app.py`](../status_service/app.py) | HTTP-ендпоінти, цикл оцінки, `/health`. |
+| [`utils/heartbeat.py`](../utils/heartbeat.py) | Collecting client state and delivering the heartbeat (timeout, retry with backoff, no exceptions propagated). |
+| [`cogs/core/status_heartbeat.py`](../cogs/core/status_heartbeat.py) | The heartbeat loop within the bot lifecycle and the shutdown heartbeat on `close()`. |
+| [`status_service/evaluator.py`](../status_service/evaluator.py) | Payload validation and state rules. |
+| [`status_service/store.py`](../status_service/store.py) | JSON state file: message ID and the last heartbeat (atomic write). |
+| [`status_service/publisher.py`](../status_service/publisher.py) | The status embed and creating/editing the single webhook message. |
+| [`status_service/app.py`](../status_service/app.py) | HTTP endpoints, the evaluation loop, `/health`. |
 
-Бот **не залежить** від status service: якщо змінні не задані, cog лише
-пише в лог, що reporter вимкнений; якщо сервіс недоступний — heartbeat
-губиться, а в лог іде одне попередження на кожну серію збоїв.
+The bot **does not depend** on the status service: if the variables are not
+set, the cog only logs that the reporter is disabled; if the service is
+unreachable, the heartbeat is lost and one warning is logged per series of
+failures.
 
-## Стани
+## States
 
-Свіжість рахується за часом **отримання** heartbeat на стороні сервісу, тож
-розсинхронізація годинника на хості бота не впливає.
+Freshness is measured by the time the heartbeat was **received** on the
+service side, so clock skew on the bot host has no effect.
 
-| Стан | Умова |
+| State | Condition |
 |---|---|
-| `ONLINE` | Свіжий heartbeat, `ready=true`, gateway підключений, затримка ≤ `STATUS_DEGRADED_LATENCY_MS`. |
-| `DEGRADED` | Свіжий heartbeat, `ready=true`, але gateway перепідключається або затримка висока. |
-| `STARTING` | Свіжий heartbeat, `ready=false`, процес молодший за `STATUS_STARTING_GRACE`. |
-| `OFFLINE` | Heartbeat старший за `STATUS_OFFLINE_AFTER`; або бот штатно завершився; або `ready=false` довше за grace. |
-| `UNKNOWN` | Сервіс щойно стартував і ще не має жодного heartbeat. **У Discord не публікується.** |
+| `ONLINE` | Fresh heartbeat, `ready=true`, gateway connected, latency ≤ `STATUS_DEGRADED_LATENCY_MS`. |
+| `DEGRADED` | Fresh heartbeat, `ready=true`, but the gateway is reconnecting or latency is high. |
+| `STARTING` | Fresh heartbeat, `ready=false`, process younger than `STATUS_STARTING_GRACE`. |
+| `OFFLINE` | Heartbeat older than `STATUS_OFFLINE_AFTER`; or the bot shut down gracefully; or `ready=false` for longer than the grace period. |
+| `UNKNOWN` | The service has just started and has no heartbeat yet. **Not published to Discord.** |
 
-`ready` береться з `client.is_ready()` і `client.is_closed()`, а не з факту,
-що процес живий. `is_ready()` у discord.py лишається `true` під час
-reconnect, тому окремо передається `gateway_connected`. Якщо event loop бота
-завис, heartbeat припиняються, і сервіс сам переходить в `OFFLINE`.
+`ready` is taken from `client.is_ready()` and `client.is_closed()`, not from
+the fact that the process is alive. In discord.py `is_ready()` stays `true`
+during a reconnect, so `gateway_connected` is sent separately. If the bot's
+event loop hangs, heartbeats stop and the service moves to `OFFLINE` on its
+own.
 
-## Повідомлення в Discord
+## The Discord message
 
-1. При першій публікації сервіс створює повідомлення через webhook
-   (`?wait=true`) і записує його ID разом з ID webhook у state-файл.
-2. Далі він лише редагує це повідомлення.
-3. Після рестарту ID читається з state-файлу — дублікатів немає.
-4. Якщо повідомлення видалили (Discord `10008 Unknown Message`), при
-   `STATUS_RECREATE_MISSING_MESSAGE=true` створюється нове, і його ID
-   зберігається. При `false` сервіс фіксує помилку, а `/health` стає 503.
-5. Якщо змінився webhook, старий ID ігнорується (у state-файлі зберігається
-   ID webhook).
-6. Якщо state-файл пошкоджений, він перейменовується на
-   `*.corrupt-<timestamp>`. Щоб не створювати нове повідомлення, задай
-   `STATUS_MESSAGE_ID` — сервіс «усиновить» наявне повідомлення цього webhook.
+1. On the first publish the service creates the message via the webhook
+   (`?wait=true`) and writes its ID together with the webhook ID to the state
+   file.
+2. After that it only edits this message.
+3. After a restart the ID is read from the state file — no duplicates.
+4. If the message was deleted (Discord `10008 Unknown Message`), with
+   `STATUS_RECREATE_MISSING_MESSAGE=true` a new one is created and its ID is
+   saved. With `false` the service records the error and `/health` becomes
+   503.
+5. If the webhook changed, the old ID is ignored (the webhook ID is stored in
+   the state file).
+6. If the state file is corrupted, it is renamed to `*.corrupt-<timestamp>`.
+   To avoid creating a new message, set `STATUS_MESSAGE_ID` — the service will
+   "adopt" the existing message of this webhook.
 
-Публікація відбувається одразу при зміні стану або раз на
-`STATUS_PUBLISH_INTERVAL` (типово 300 с). Час останнього heartbeat і uptime
-показуються Discord-мітками `<t:…:R>`, які оновлюються в клієнті самі, тож
-часті редагування не потрібні. Rate limit (429) обробляє discord.py; при
-інших помилках — експоненційний backoff до 300 с.
+Publishing happens immediately on a state change or once every
+`STATUS_PUBLISH_INTERVAL` (300 s by default). The time of the last heartbeat
+and the uptime are shown with Discord `<t:…:R>` timestamps, which the client
+updates by itself, so frequent edits are not needed. Rate limits (429) are
+handled by discord.py; on other errors there is exponential backoff up to
+300 s.
 
-Webhook може редагувати **лише власні** повідомлення, тому вручну створювати
-повідомлення не потрібно і не можна.
+A webhook can edit **only its own** messages, so creating the message manually
+is neither needed nor possible.
 
-## Змінні середовища
+## Environment variables
 
-Повний шаблон — у [`.env.example`](../.env.example).
+The full template is in [`.env.example`](../.env.example).
 
-| Змінна | Хто читає | Типово | Призначення |
+| Variable | Read by | Default | Purpose |
 |---|---|---|---|
-| `STATUS_HEARTBEAT_SECRET` | обидва | — | Спільний секрет для `Authorization: Bearer`. Для сервісу обов'язковий, ≥ 16 символів. |
-| `STATUS_SERVICE_NAME` | обидва | `miyabi-bot` | Ідентифікатор сервісу в payload. |
-| `STATUS_HEARTBEAT_INTERVAL` | обидва | `30` | Інтервал heartbeat, с (сервіс лише перевіряє, що поріг більший). |
-| `STATUS_HEARTBEAT_URL` | бот | порожньо | Адреса `/heartbeat`. Порожньо — reporter вимкнений. |
-| `STATUS_HEARTBEAT_TIMEOUT` | бот | `5` | Timeout одного запиту, с. 3 спроби з backoff 1 і 2 с. |
-| `STATUS_LISTEN_HOST` / `STATUS_LISTEN_PORT` | сервіс | `127.0.0.1` / `8787` | Адреса HTTP-сервера. |
-| `STATUS_WEBHOOK_URL` | сервіс | порожньо | Webhook каналу статусу. Порожньо — публікація вимкнена. |
-| `STATUS_DISPLAY_NAME` | сервіс | `Miyabi Bot` | Назва в заголовку embed. |
-| `STATUS_THUMBNAIL_URL` | сервіс | `bot.assets.avatar` з `config.json` | Thumbnail embed (лише `https://`). Без значення й без `config.json` — embed без thumbnail. |
-| `STATUS_STATE_FILE` | сервіс | `data/status_service_state.json` | State-файл (відносно кореня репо). |
-| `STATUS_MESSAGE_ID` | сервіс | порожньо | Лише для відновлення після втрати state-файлу. |
-| `STATUS_RECREATE_MISSING_MESSAGE` | сервіс | `true` | Створювати нове повідомлення, якщо старе видалили. |
-| `STATUS_OFFLINE_AFTER` | сервіс | `90` | Поріг застарівання heartbeat, с. |
-| `STATUS_STARTING_GRACE` | сервіс | `180` | Скільки процес може бути `ready=false` у стані `STARTING`. |
-| `STATUS_DEGRADED_LATENCY_MS` | сервіс | `1000` | Поріг затримки для `DEGRADED`. |
-| `STATUS_EVALUATE_INTERVAL` | сервіс | `10` | Як часто перевіряється свіжість, с. |
-| `STATUS_PUBLISH_INTERVAL` | сервіс | `300` | Мінімальний інтервал повторної публікації без зміни стану, с. |
+| `STATUS_HEARTBEAT_SECRET` | both | — | Shared secret for `Authorization: Bearer`. Required for the service, ≥ 16 characters. |
+| `STATUS_SERVICE_NAME` | both | `miyabi-bot` | Service identifier in the payload. |
+| `STATUS_HEARTBEAT_INTERVAL` | both | `30` | Heartbeat interval, s (the service only checks that the threshold is larger). |
+| `STATUS_HEARTBEAT_URL` | bot | empty | Address of `/heartbeat`. Empty — reporter disabled. |
+| `STATUS_HEARTBEAT_TIMEOUT` | bot | `5` | Timeout of a single request, s. 3 attempts with 1 and 2 s backoff. |
+| `STATUS_LISTEN_HOST` / `STATUS_LISTEN_PORT` | service | `127.0.0.1` / `8787` | HTTP server address. |
+| `STATUS_WEBHOOK_URL` | service | empty | Webhook of the status channel. Empty — publishing disabled. |
+| `STATUS_DISPLAY_NAME` | service | `Miyabi Bot` | Name in the embed title. |
+| `STATUS_THUMBNAIL_URL` | service | `bot.assets.avatar` from `config.json` | Embed thumbnail (`https://` only). Without a value and without `config.json` — embed without a thumbnail. |
+| `STATUS_STATE_FILE` | service | `data/status_service_state.json` | State file (relative to the repo root). |
+| `STATUS_MESSAGE_ID` | service | empty | Only for recovery after the state file was lost. |
+| `STATUS_RECREATE_MISSING_MESSAGE` | service | `true` | Create a new message if the old one was deleted. |
+| `STATUS_OFFLINE_AFTER` | service | `90` | Heartbeat staleness threshold, s. |
+| `STATUS_STARTING_GRACE` | service | `180` | How long the process may stay `ready=false` in the `STARTING` state. |
+| `STATUS_DEGRADED_LATENCY_MS` | service | `1000` | Latency threshold for `DEGRADED`. |
+| `STATUS_EVALUATE_INTERVAL` | service | `10` | How often freshness is checked, s. |
+| `STATUS_PUBLISH_INTERVAL` | service | `300` | Minimum interval for re-publishing without a state change, s. |
 
-Некоректні значення: бот підставляє типові й пише попередження; сервіс
-відмовляється стартувати з кодом 2.
+Invalid values: the bot substitutes the defaults and logs a warning; the
+service refuses to start with exit code 2.
 
-## Налаштування Discord
+## Discord setup
 
-1. Створи окремий текстовий канал, наприклад `#bot-status`, у якому
-   звичайні користувачі не можуть писати.
-2. **Channel Settings → Integrations → Webhooks → New Webhook**, назви його,
-   скопіюй URL і поклади в `STATUS_WEBHOOK_URL` (лише в `.env` / секрети
-   середовища, не в Git).
-3. Більше нічого не потрібно: повідомлення створиться автоматично.
+1. Create a dedicated text channel, e.g. `#bot-status`, where regular users
+   cannot write.
+2. **Channel Settings → Integrations → Webhooks → New Webhook**, name it, copy
+   the URL, and put it into `STATUS_WEBHOOK_URL` (only in `.env` / environment
+   secrets, not in Git).
+3. Nothing else is needed: the message is created automatically.
 
-Webhook URL — це секрет: хто його має, може писати в канал. Якщо він
-витік — видали webhook і створи новий; сервіс створить нове повідомлення.
+The webhook URL is a secret: whoever has it can post to the channel. If it
+leaks, delete the webhook and create a new one; the service will create a new
+message.
 
-## HTTP-ендпоінти
+## HTTP endpoints
 
-| Метод | Шлях | Відповіді |
+| Method | Path | Responses |
 |---|---|---|
-| `POST` | `/heartbeat` | `200` прийнято; `401` без/з неправильним секретом; `400` невалідний JSON/поля; `413` > 16 KB; `422` невідомий сервіс. |
-| `GET` | `/health` | `200` або `503` з JSON `{status, problems, …}`. |
+| `POST` | `/heartbeat` | `200` accepted; `401` missing/wrong secret; `400` invalid JSON/fields; `413` > 16 KB; `422` unknown service. |
+| `GET` | `/health` | `200` or `503` with JSON `{status, problems, …}`. |
 
-`/health` описує **сам сервіс**, а не бота: чи працює цикл оцінки, чи
-пишеться state-файл, чи вдається оновлювати повідомлення (503 після 3
-невдач поспіль). Стан бота видно в Discord.
+`/health` describes **the service itself**, not the bot: whether the
+evaluation loop is running, whether the state file is being written, whether
+the message can be updated (503 after 3 consecutive failures). The bot's state
+is visible in Discord.
 
-### Мережа
+### Networking
 
-Типово сервіс слухає лише `127.0.0.1`. Якщо бот і сервіс у різних
-контейнерах, став `STATUS_LISTEN_HOST=0.0.0.0` **всередині** приватної
-Docker-мережі й не публікуй порт назовні; бот звертається на
-`http://<ім'я-сервісу>:8787/heartbeat`. Доступ до Docker socket не потрібен.
+By default the service listens on `127.0.0.1` only. If the bot and the service
+run in different containers, set `STATUS_LISTEN_HOST=0.0.0.0` **inside** a
+private Docker network and do not publish the port externally; the bot calls
+`http://<service-name>:8787/heartbeat`. Access to the Docker socket is not
+required.
 
 ### Uptime Kuma
 
-Monitor type **HTTP(s)**, URL `http://<host>:8787/health`, інтервал 60 с,
-accepted status codes `200-299`. Kuma має бути в тій самій приватній мережі
-або на тому самому хості. Ендпоінт не потребує секрету, бо не приймає даних і
-не розкриває секретів.
+Monitor type **HTTP(s)**, URL `http://<host>:8787/health`, interval 60 s,
+accepted status codes `200-299`. Kuma must be on the same private network or
+the same host. The endpoint needs no secret because it accepts no data and
+exposes no secrets.
 
-## Розширення на інші сервіси
+## Extending to other services
 
-Payload містить поле `service`, а state-файл зберігає heartbeat за назвою
-сервісу. Зараз приймається лише `STATUS_SERVICE_NAME`; для сайту чи API
-наступним кроком буде список сервісів у налаштуваннях і поле embed для
-кожного з них у тому самому повідомленні.
+The payload contains a `service` field, and the state file stores heartbeats
+by service name. Right now only `STATUS_SERVICE_NAME` is accepted; for a
+website or an API the next step would be a list of services in the settings
+and an embed field for each of them in the same message.
 
-## Локальна перевірка
+## Local verification
 
-Автоматичні тести (без Discord):
+Automated tests (no Discord):
 
 ```powershell
 python -m pytest tests/test_status_heartbeat.py tests/test_status_service.py
 ```
 
-Живий сценарій (потрібні тестовий бот і тестовий канал з webhook), два
-термінали з кореня репо, `.env` заповнений за `.env.example`:
+Live scenario (requires a test bot and a test channel with a webhook), two
+terminals from the repo root, `.env` filled in from `.env.example`:
 
 ```powershell
-# термінал 1
+# terminal 1
 python -m status_service
-# термінал 2
+# terminal 2
 python bot.py
 ```
 
-1. У логах сервісу: `miyabi-bot: UNKNOWN -> STARTING`, потім `-> ONLINE`,
-   `Created status message <id>`. У каналі з'являється одне повідомлення 🟢.
-2. `curl http://127.0.0.1:8787/health` → `200`, `heartbeats_received` росте.
-3. Зупини бота `Ctrl+C` → shutdown-heartbeat, повідомлення стає 🔴 одразу.
-   Для перевірки «зниклого» бота вбий процес без graceful shutdown
-   (`Stop-Process -Id <pid> -Force`) → 🔴 приблизно через 90–100 с.
-4. Запусти бота знову → 🔵/🟢, редагується **те саме** повідомлення.
-5. Перезапусти `status_service` → у логах немає `Created status message`,
-   ID у `data/status_service_state.json` той самий.
-6. Перевірка автентифікації:
+1. In the service logs: `miyabi-bot: UNKNOWN -> STARTING`, then `-> ONLINE`,
+   `Created status message <id>`. A single 🟢 message appears in the channel.
+2. `curl http://127.0.0.1:8787/health` → `200`, `heartbeats_received` grows.
+3. Stop the bot with `Ctrl+C` → shutdown heartbeat, the message turns 🔴
+   immediately. To test a "vanished" bot, kill the process without graceful
+   shutdown (`Stop-Process -Id <pid> -Force`) → 🔴 after roughly 90–100 s.
+4. Start the bot again → 🔵/🟢, **the same** message is edited.
+5. Restart `status_service` → no `Created status message` in the logs, the ID
+   in `data/status_service_state.json` stays the same.
+6. Authentication check:
    `curl -X POST http://127.0.0.1:8787/heartbeat -d "{}"` → `401`.

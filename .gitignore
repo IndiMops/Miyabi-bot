@@ -78,3 +78,5 @@ assets/
 logs/
 # Status service state (Discord message ID, last heartbeat)
 data/
+
+CLAUDE.md

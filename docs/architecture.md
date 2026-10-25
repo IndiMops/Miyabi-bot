@@ -1,90 +1,92 @@
-# Архітектура
+# Architecture
 
-[← До змісту](README.md)
+[← Back to contents](README.md)
 
-Проєкт є невеликим монолітним Discord-ботом. Бази даних і публічного API
-немає. Поруч живе окремий процес [`status_service`](status-monitoring.md),
-який приймає heartbeat бота й оновлює повідомлення статусу в Discord.
+The project is a small monolithic Discord bot. There is no database and no
+public API. Next to it runs a separate [`status_service`](status-monitoring.md)
+process that receives the bot's heartbeats and updates the status message in
+Discord.
 
-## Карта проєкту
+## Project map
 
 ```text
 Miyabi-bot/
-├── bot.py                    # точка входу та composition root
-├── config.json               # публічна конфігурація
-├── requirements.txt          # runtime-залежності
+├── bot.py                    # entry point and composition root
+├── config.json               # public configuration
+├── requirements.txt          # runtime dependencies
 ├── cogs/
-│   ├── core/                 # status heartbeat (без команд)
-│   ├── information/          # /help і /info
+│   ├── core/                 # status heartbeat (no commands)
+│   ├── information/          # /help and /info
 │   ├── wiki/                 # /characters
-│   └── dev/                  # тестові команди
-├── embeds/                   # представлення, згруповані за доменами
-│   ├── information/          # embeds для /help
-│   ├── dev/                  # демонстраційний deep-menu
+│   └── dev/                  # test commands
+├── embeds/                   # presentation, grouped by domain
+│   ├── information/          # embeds for /help
+│   ├── dev/                  # demo deep-menu
 │   └── wiki/
 │       └── characters/
-│           ├── menu.py       # кореневий реєстр дерева
-│           ├── routes.py     # ключі, aliases і breadcrumbs
-│           └── agents/       # окремі файли персонажів
+│           ├── menu.py       # root tree registry
+│           ├── routes.py     # keys, aliases, and breadcrumbs
+│           └── agents/       # one file per character
 ├── views/
-│   ├── nav.py                # вкладені select-меню
-│   └── pagination.py         # кнопкова пагінація
+│   ├── nav.py                # nested select menus
+│   └── pagination.py         # button pagination
 ├── utils/
 │   ├── config.py             # .env + config.json
-│   ├── logger.py             # Loguru і standard logging
-│   ├── heartbeat.py          # payload і доставка heartbeat
-│   └── misc.py               # JSON, кольори, версія, fetch commands
-├── status_service/           # окремий процес моніторингу статусу
-├── tests/                    # локальні unit-тести
-└── docs/                     # документація
+│   ├── logger.py             # Loguru and standard logging
+│   ├── heartbeat.py          # heartbeat payload and delivery
+│   └── misc.py               # JSON, colors, version, fetch commands
+├── status_service/           # separate status monitoring process
+├── tests/                    # local unit tests
+└── docs/                     # documentation
 ```
 
-`embeds/` тепер є явною ієрархією Python-пакетів з `__init__.py` та
-контрольованими exports. Папки `cogs`, `utils` і `views` поки залишаються
-implicit namespace packages.
+`embeds/` is now an explicit hierarchy of Python packages with `__init__.py`
+and controlled exports. The `cogs`, `utils`, and `views` folders remain
+implicit namespace packages for now.
 
-## Життєвий цикл запуску
+## Startup lifecycle
 
-1. Під час імпорту `Config` читаються `.env` і `config.json`.
-2. Під час імпорту логера створюється `logs/` та підключаються файлові
-   handlers.
-3. Створюється екземпляр `MiyabiBot` зі стандартними intents.
-4. `bot.run(Config.require_token())` перевіряє токен і підключається до
+1. When `Config` is imported, `.env` and `config.json` are read.
+2. When the logger is imported, `logs/` is created and file handlers are
+   attached.
+3. A `MiyabiBot` instance is created with the configured intents.
+4. `bot.run(Config.require_token())` validates the token and connects to
    Discord.
-5. `setup_hook()` рекурсивно знаходить усі `.py` у `cogs/`.
-6. При `DEBUG=False` loader пропускає папки з `disabled_cogs_folder`.
-7. Кожний модуль завантажується як extension через його `async setup(bot)`.
-8. `tree.sync()` глобально синхронізує всі завантажені slash-команди.
-9. Стартує 30-секундний цикл статусу.
-10. Після готовності подія `on_ready` пише повідомлення в лог.
+5. `setup_hook()` recursively discovers every `.py` in `cogs/`.
+6. With `DEBUG=False`, the loader skips folders listed in
+   `disabled_cogs_folder`.
+7. Each module is loaded as an extension through its `async setup(bot)`.
+8. `tree.sync()` globally syncs all loaded slash commands.
+9. The 30-second presence status loop starts.
+10. Once ready, the `on_ready` event writes a message to the log.
 
-Якщо будь-який cog кидає `ExtensionError`, loader записує traceback і повторно
-піднімає помилку. Через це весь запуск зупиняється — бот не продовжує роботу з
-частковим набором модулів.
+If any cog raises `ExtensionError`, the loader logs the traceback and re-raises
+the error. As a result the whole startup stops — the bot does not keep running
+with a partial set of modules.
 
-Статус раз на 30 секунд перемикається між:
+Every 30 seconds the presence status alternates between:
 
-- `/help | dev-<короткий Git hash>`;
-- `<кількість> servers`.
+- `/help | dev-<short Git hash>`;
+- `<count> servers`.
 
-Якщо Git недоступний, використовується `bot.version` із `config.json`.
+If Git is unavailable, `bot.version` from `config.json` is used.
 
-## Межі відповідальності
+## Responsibility boundaries
 
-| Шар | Відповідальність |
+| Layer | Responsibility |
 |---|---|
-| `bot.py` | Створення клієнта, intents, завантаження extensions, sync і presence. |
-| `cogs/` | Вхідні Discord-команди та orchestration відповіді. |
-| `embeds/` | Статичні Discord Embed і дерево доступного контенту. |
-| `views/` | Повторно використовувані UI-компоненти Discord. |
-| `utils/` | Конфігурація, логування й невеликі загальні helpers. |
+| `bot.py` | Creating the client, intents, loading extensions, sync, and presence. |
+| `cogs/` | Incoming Discord commands and response orchestration. |
+| `embeds/` | Static Discord embeds and the tree of available content. |
+| `views/` | Reusable Discord UI components. |
+| `utils/` | Configuration, logging, and small shared helpers. |
 
-Весь wiki-контент зараз жорстко записаний в `embeds/`. Залежність `requests`
-встановлюється, але поточний Python-код її не використовує.
+All wiki content is currently hardcoded in `embeds/`. The `requests`
+dependency is installed, but the current Python code does not use it.
 
-## Як додати slash-команду
+## How to add a slash command
 
-Створи файл, наприклад `cogs/information/example.py`:
+Create a file, for example `cogs/information/example.py`:
 
 ```python
 import discord
@@ -111,64 +113,64 @@ async def setup(bot: commands.Bot):
     await bot.add_cog(ExampleCommand(bot))
 ```
 
-Після перезапуску loader знайде файл автоматично. Не називай звичайний helper
-усередині `cogs/` окремим `.py`, якщо він не є валідним Discord extension:
-loader намагатиметься завантажити кожний файл, назва якого не починається з
-`__`.
+After a restart the loader finds the file automatically. Do not put a plain
+helper inside `cogs/` as a separate `.py` file unless it is a valid Discord
+extension: the loader will try to load every file whose name does not start
+with `__`.
 
-Після першої синхронізації додай ID до `config.json` лише тоді, коли команду
-потрібно згадувати в embed як `</example:ID>`. Для самої реєстрації цей запис не
-потрібний.
+After the first sync, add the ID to `config.json` only if the command needs to
+be mentioned in an embed as `</example:ID>`. The entry is not required for the
+registration itself.
 
-## Контракт навігаційних embeds
+## Navigation embed contract
 
-[`NavView`](../views/nav.py) очікує клас із трьома class methods:
+[`NavView`](../views/nav.py) expects a class with three class methods:
 
-| Метод | Результат |
+| Method | Result |
 |---|---|
-| `get_embed(key)` | Один `discord.Embed` для поточного вузла. |
-| `get_children(key)` | Список дочірніх пунктів або порожній список. |
-| `get_pages(key)` | Список embeds для пагінації або `None`. |
+| `get_embed(key)` | A single `discord.Embed` for the current node. |
+| `get_children(key)` | A list of child items, or an empty list. |
+| `get_pages(key)` | A list of embeds for pagination, or `None`. |
 
-Для ключа `Main` клас зазвичай має:
+For the `Main` key the class usually has:
 
 ```python
-Main = discord.Embed(title="Головна")
+Main = discord.Embed(title="Main")
 Main_children = [
-    {"label": "Деталі", "value": "Details", "emoji": "ℹ️"},
+    {"label": "Details", "value": "Details", "emoji": "ℹ️"},
 ]
 
-Details = discord.Embed(title="Деталі")
+Details = discord.Embed(title="Details")
 Details_children = []
 ```
 
-Значення `value` повинно точно збігатися з назвою відповідного class
-attribute. Дочірні елементи також можуть бути рядками або tuple, але словники
-з явними `label` і `value` читати та підтримувати простіше.
+The `value` must exactly match the name of the corresponding class attribute.
+Children may also be strings or tuples, but dictionaries with explicit `label`
+and `value` are easier to read and maintain.
 
-Навігація зберігає історію в пам'яті view, а після першого рівня додає `Back`.
-Якщо для вузла є `<Key>_pages`, вона переходить у
+Navigation keeps its history in the view's memory and adds `Back` after the
+first level. If a node has `<Key>_pages`, it switches to
 [`PaginationView`](../views/pagination.py).
 
-Обидва view за замовчуванням мають timeout 120 секунд. Після timeout старі
-компоненти можуть залишатися видимими в Discord, але більше не обробляють
-натискання. Після перезапуску бота старі views також не відновлюються.
+Both views time out after 120 seconds by default. After the timeout old
+components may stay visible in Discord but no longer handle clicks. Old views
+are also not restored after a bot restart.
 
-Для вкладених вузлів `NavSelect` показує максимум 24 дочірні елементи та
-додає 25-м option `Back`. Якщо дочірніх елементів більше, `<Key>_pages`
-повинен містити відповідну кількість embeds. Пагінація одночасно перемикає
-embed і зріз select-options, а номер сторінки зберігається під час переходу до
-елемента та повернення через `Back`.
+For nested nodes `NavSelect` shows at most 24 children and adds `Back` as the
+25th option. If there are more children, `<Key>_pages` must contain the
+matching number of embeds. Pagination switches both the embed and the slice of
+select options at once, and the page number is preserved when navigating into
+an item and returning via `Back`.
 
-## Технічні нюанси
+## Technical notes
 
-- Усі поточні команди є slash-командами. Значення prefix `"."` поки не дає
-  користувацької функціональності.
-- `message_content` intent не ввімкнений.
-- Глобальний `tree.sync()` виконується на кожному старті.
-- `AllowedMentions` забороняє масові згадки `@everyone` і ролей, але дозволяє
-  згадки користувачів.
-- Embed-об'єкти створюються на рівні класу й повторно використовуються. Не
-  мутуй отриманий embed для одного користувача без створення копії.
-- У проєкті немає постійного сховища: історія меню існує лише всередині
-  конкретного активного view.
+- All current commands are slash commands. The `"."` prefix provides no
+  user-facing functionality yet.
+- The `message_content` intent is not enabled.
+- A global `tree.sync()` runs on every startup.
+- `AllowedMentions` forbids mass `@everyone` and role mentions but allows user
+  mentions.
+- Embed objects are created at class level and reused. Do not mutate a
+  retrieved embed for a single user without making a copy.
+- The project has no persistent storage: menu history exists only inside a
+  specific active view.

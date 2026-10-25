@@ -1,23 +1,23 @@
-# Discord-команди
+# Discord Commands
 
-[← До змісту](README.md)
+[← Back to contents](README.md)
 
-Усі наявні команди — глобальні application commands. У коді немає
-prefix-команд, хоча prefix `"."` зберігається в конфігурації.
+All existing commands are global application commands. There are no prefix
+commands in the code, although the `"."` prefix is kept in the configuration.
 
-## Користувацькі команди
+## User commands
 
-Ці модулі завантажуються при `DEBUG=False`.
+These modules are loaded with `DEBUG=False`.
 
-| Команда | Параметри | Відповідь | Поточний стан |
+| Command | Parameters | Response | Current state |
 |---|---|---|---|
-| `/info` | немає | Ephemeral embed | Показує назву, версію, час оновлення, розробника, support server і GitHub. |
-| `/help` | `command?`, `category?` | Ephemeral embed/menu | Основна довідка. Детальний контент поки є лише для `help`, `info` і категорії `information`. |
-| `/characters` | `agent?` | Ephemeral embed/menu | Інтерактивний довідник із меню або прямим переходом до агента через autocomplete. |
+| `/info` | none | Ephemeral embed | Shows the name, version, update time, developer, support server, and GitHub. |
+| `/help` | `command?`, `category?` | Ephemeral embed/menu | Main help. Detailed content exists only for `help`, `info`, and the `information` category so far. |
+| `/characters` | `agent?` | Ephemeral embed/menu | Interactive reference with a menu or a direct jump to an agent via autocomplete. |
 
 ### `/help`
 
-Варіанти використання:
+Usage:
 
 ```text
 /help
@@ -25,53 +25,53 @@ prefix-команд, хоча prefix `"."` зберігається в конф�
 /help category:information
 ```
 
-- без параметрів показує select-меню категорій;
-- `command` намагається відкрити embed конкретної команди;
-- `category` відкриває embed категорії;
-- якщо передати обидва параметри, пріоритет має `command`.
+- without parameters it shows a category select menu;
+- `command` tries to open the embed of a specific command;
+- `category` opens the category embed;
+- if both parameters are given, `command` takes precedence.
 
-Autocomplete для `command` отримує всі живі slash-команди з Discord, але
-детальні embeds реалізовані лише для `help` та `info`. Через це, наприклад,
-autocomplete може запропонувати `characters`, після чого довідка відповість,
-що команду не знайдено.
+Autocomplete for `command` fetches all live slash commands from Discord, but
+detailed embeds are implemented only for `help` and `info`. Because of this,
+autocomplete may suggest, for example, `characters`, after which help replies
+that the command was not found.
 
-Список help-команд дублюється в кількох місцях:
+The list of help commands is duplicated in several places:
 
 - `cogs/information/help.py`;
 - `embeds/information/help.py`;
-- `config.json` для command IDs.
+- `config.json` for command IDs.
 
-При додаванні нової команди ці місця легко розсинхронізувати.
+When adding a new command, these places easily get out of sync.
 
 ### `/characters`
 
-Поточне дерево:
+Current tree:
 
 ```text
-Головна
-├── Фізичні агенти
-│   └── Аліса → Огляд / Навички / Збірка
-├── Вогняні агенти
-│   └── 35 тестових агентів → сторінки 24 + 11
-├── Крижані агенти       # безпечна сторінка-заглушка
-├── Електричні агенти    # безпечна сторінка-заглушка
-└── Ефірні агенти        # безпечна сторінка-заглушка
+Main
+├── Physical agents
+│   └── Alice → Overview / Skills / Build
+├── Fire agents
+│   └── 35 test agents → pages of 24 + 11
+├── Ice agents        # safe placeholder page
+├── Electric agents   # safe placeholder page
+└── Ether agents      # safe placeholder page
 ```
 
-На вкладеному рівні один із 25 доступних select-options зарезервований для
-`Back`, тому одна сторінка містить максимум 24 персонажі. Кнопки пагінації
-одночасно перемикають embed і набір options. Після перегляду персонажа `Back`
-повертає користувача на ту саму сторінку списку.
+On nested levels one of the 25 available select options is reserved for
+`Back`, so a single page holds at most 24 characters. The pagination buttons
+switch the embed and the set of options at the same time. After viewing a
+character, `Back` returns the user to the same page of the list.
 
-35 вогняних агентів є лише технічними заглушками для демонстрації механізму.
-Без параметра команда відкриває головне меню:
+The 35 fire agents are only technical placeholders demonstrating the
+mechanism. Without a parameter the command opens the main menu:
 
 ```text
 /characters
 ```
 
-Необов'язковий `agent` підтримує autocomplete, внутрішні ключі та
-альтернативні назви:
+The optional `agent` parameter supports autocomplete, internal keys, and
+alternative names:
 
 ```text
 /characters agent:Аліса Таймфілд
@@ -79,45 +79,44 @@ autocomplete може запропонувати `characters`, після чог
 /characters agent:FireAgent30
 ```
 
-Прямий перехід відновлює повний маршрут `Main → категорія → агент`, тому
-option `Back` повертає спочатку до категорії, а потім до головного меню.
-Реєстр ключів, aliases і маршрутів знаходиться в
-`embeds/wiki/characters/routes.py`.
+A direct jump restores the full route `Main → category → agent`, so the `Back`
+option returns first to the category and then to the main menu. The registry
+of keys, aliases, and routes lives in `embeds/wiki/characters/routes.py`.
 
-## Dev-команди
+## Dev commands
 
-Папка `cogs/dev` записана в `disabled_cogs_folder`, тому ці команди
-пропускаються лише при `DEBUG=False`. При `DEBUG=True` вони теж глобально
-синхронізуються.
+The `cogs/dev` folder is listed in `disabled_cogs_folder`, so these commands
+are skipped only with `DEBUG=False`. With `DEBUG=True` they are synced
+globally too.
 
-| Команда | Відповідь | Призначення |
+| Command | Response | Purpose |
 |---|---|---|
-| `/ping` | Публічна | Показує gateway latency у мілісекундах. |
-| `/pagination_test` | Ephemeral | Демонструє пагінацію з 10 embeds. |
-| `/deep_menu` | Ephemeral | Демонструє вкладене меню та перехід до п'яти сторінок. |
+| `/ping` | Public | Shows gateway latency in milliseconds. |
+| `/pagination_test` | Ephemeral | Demonstrates pagination over 10 embeds. |
+| `/deep_menu` | Ephemeral | Demonstrates a nested menu and navigation to five pages. |
 
-У dev-команд немає `is_owner`, permission checks або cooldown. `owner_id` у
-конструкторі бота не захищає їх автоматично. Отже, якщо вони завантажені, їх
-може викликати будь-який користувач, який бачить бота.
+Dev commands have no `is_owner`, permission checks, or cooldown. The
+`owner_id` in the bot constructor does not protect them automatically. So if
+they are loaded, any user who can see the bot can invoke them.
 
-## Загальна поведінка UI
+## General UI behavior
 
-- Ephemeral-відповідь бачить лише користувач, який викликав команду.
-- Select-меню та пагінація мають timeout 600 секунд за замовчуванням (значення `bot.nav_menu_timeout` у `config.json`).
-- Пагінація підтримує першу, попередню, наступну й останню сторінку.
-- Вимкнена центральна кнопка показує поточне значення `N/M`.
-- Після timeout кнопки можуть лишитися на екрані, але натискання вже не
-  обробляються.
+- An ephemeral response is visible only to the user who invoked the command.
+- Select menus and pagination time out after 600 seconds by default (the
+  `bot.nav_menu_timeout` value in `config.json`).
+- Pagination supports first, previous, next, and last page.
+- The disabled middle button shows the current `N/M` value.
+- After timeout the buttons may remain on screen, but clicks are no longer
+  handled.
 
-## Поточні обмеження
+## Current limitations
 
-- Крижана, електрична та ефірна гілки поки не мають персонажів.
-- Вогняні агенти є демонстраційними заглушками, а не ігровими даними.
-- `/help` не описує `/characters` і dev-команди.
-- Command IDs жорстко записані для конкретного Discord Application.
-- Частина зображень використовує підписані Discord attachment URLs, які можуть
-  протермінуватися.
-- Custom emoji залежать від доступності конкретних Discord emoji.
-- Alice зараз містить лише короткий вступний embed без характеристик, навичок
-  або build-інформації.
-- Жодна команда не має rate limit, cooldown чи role-based обмежень.
+- The ice, electric, and ether branches have no characters yet.
+- The fire agents are demo placeholders, not game data.
+- `/help` does not describe `/characters` or the dev commands.
+- Command IDs are hardcoded for a specific Discord Application.
+- Some images use signed Discord attachment URLs, which can expire.
+- Custom emoji depend on the availability of specific Discord emoji.
+- Alice currently has only a short introductory embed without stats, skills,
+  or build information.
+- No command has a rate limit, cooldown, or role-based restrictions.

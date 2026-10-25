@@ -1,23 +1,23 @@
-# Запуск Miyabi Bot
+# Running Miyabi Bot
 
-[← До змісту](README.md)
+[← Back to contents](README.md)
 
-## Вимоги
+## Requirements
 
-- Python **3.11** — рекомендована версія, бо саме її використовують CI та
-  release workflow;
+- Python **3.11** — the recommended version, since it is what the CI and
+  release workflows use;
 - Git;
-- Discord Application із доданим Bot;
-- токен цього бота;
-- тестовий Discord-сервер.
+- a Discord Application with a Bot added;
+- the token of that bot;
+- a test Discord server.
 
-Поточне локальне `venv` працює на Python 3.14.6 і проходить тести, але
-`discord.py` уже показує deprecation warning для цієї версії. Для
-відтворюваного середовища краще залишатися на Python 3.11.
+The current local `venv` runs on Python 3.14.6 and passes the tests, but
+`discord.py` already shows a deprecation warning for that version. For a
+reproducible environment, stick with Python 3.11.
 
-## 1. Створення середовища
+## 1. Creating the environment
 
-Запускай усі команди з кореня репозиторію.
+Run all commands from the repository root.
 
 ### Windows PowerShell
 
@@ -28,13 +28,13 @@ python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 ```
 
-Якщо `py -3.11` недоступна, перевір установлені версії командою:
+If `py -3.11` is not available, list the installed versions with:
 
 ```powershell
 py --list
 ```
 
-### Linux або macOS
+### Linux or macOS
 
 ```bash
 python3.11 -m venv venv
@@ -43,88 +43,88 @@ python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 ```
 
-`pytest` і `ruff` є інструментами розробки, але не входять у
-[`requirements.txt`](../requirements.txt). Для роботи з кодом встанови їх
-окремо:
+`pytest` and `ruff` are development tools and are not part of
+[`requirements.txt`](../requirements.txt). Install them separately to work on
+the code:
 
 ```powershell
 python -m pip install pytest ruff
 ```
 
-## 2. Створення Discord Application
+## 2. Creating the Discord Application
 
-У [Discord Developer Portal](https://discord.com/developers/applications):
+In the [Discord Developer Portal](https://discord.com/developers/applications):
 
-1. створи Application;
-2. додай до неї Bot і отримай його токен;
-3. для встановлення застосунку додай scopes `applications.commands` і `bot`;
-4. дай боту мінімальні дозволи для перегляду каналу, надсилання повідомлень та
-   embeds;
-5. встанови застосунок на тестовий сервер.
+1. create an Application;
+2. add a Bot to it and get its token;
+3. to install the application, add the `applications.commands` and `bot`
+   scopes;
+4. give the bot the minimum permissions to view channels, send messages, and
+   embed links;
+5. install the application on the test server.
 
-Поточний код не використовує `members`, `presences` або `message_content`, тому
-привілейовані Gateway Intents для наявних slash-команд не потрібні.
+The current code does not use `members`, `presences`, or `message_content`, so
+privileged Gateway Intents are not required for the existing slash commands.
 
-Корисні офіційні сторінки:
+Useful official pages:
 
 - [Discord: Getting Started](https://docs.discord.com/developers/quick-start/getting-started)
 - [Discord: Application Commands](https://docs.discord.com/developers/interactions/application-commands)
 - [Discord: Gateway Intents](https://docs.discord.com/developers/events/gateway)
 
-## 3. Локальний `.env`
+## 3. Local `.env`
 
-Створи файл `.env` у корені репозиторію:
+Create a `.env` file in the repository root:
 
 ```dotenv
 DEBUG=False
-DISCORD_BOT_TOKEN=вставити_сюди_токен
+DISCORD_BOT_TOKEN=paste_your_token_here
 ```
 
-Правила:
+Rules:
 
-- не додавай пробіли навколо назви змінної;
-- не публікуй справжній токен;
-- якщо токен потрапив у Git або повідомлення, негайно скинь його в Discord
-  Developer Portal;
-- значення `DEBUG=True` використовуй лише усвідомлено — воно відкриває
-  тестові команди.
+- do not put spaces around the variable name;
+- never publish the real token;
+- if the token ends up in Git or a message, reset it immediately in the
+  Discord Developer Portal;
+- use `DEBUG=True` only deliberately — it exposes the test commands.
 
-`.env` уже доданий до `.gitignore`.
+`.env` is already listed in `.gitignore`.
 
-## 4. Запуск
+## 4. Running
 
 ```powershell
 python bot.py
 ```
 
-Або без активації середовища:
+Or without activating the environment:
 
 ```powershell
 .\venv\Scripts\python.exe bot.py
 ```
 
-Під час успішного старту бот:
+On a successful start the bot:
 
-1. читає `.env` і `config.json`;
-2. знаходить і завантажує всі Python-модулі в `cogs/`;
-3. глобально синхронізує slash-команди через Discord;
-4. запускає оновлення статусу;
-5. пише в консоль `Bot is ready!`.
+1. reads `.env` and `config.json`;
+2. discovers and loads all Python modules in `cogs/`;
+3. globally syncs slash commands with Discord;
+4. starts the presence status updates;
+5. prints `Bot is ready!` to the console.
 
-Глобальні slash-команди іноді з'являються у клієнті Discord не миттєво.
-Зупинити процес можна через `Ctrl+C`.
+Global slash commands sometimes take a while to appear in the Discord client.
+Stop the process with `Ctrl+C`.
 
-Запускай бот саме з кореня репозиторію: файлові логи створюються відносно
-поточної робочої директорії.
+Always run the bot from the repository root: log files are created relative to
+the current working directory.
 
-## 5. Швидка перевірка перед роботою
+## 5. Quick check before working
 
 ```powershell
 git status
 python -m pytest -q
-python -m compileall -q bot.py cogs embeds utils views
+python -m compileall -q bot.py cogs embeds utils views status_service
 python -m ruff check --select E9,F63,F7,F82 .
 ```
 
-Ці команди повторюють основні перевірки CI. Детальніше дивись у
-[довідці для розробки](development.md).
+These commands mirror the main CI checks. See the
+[development guide](development.md) for details.
