@@ -1,4 +1,6 @@
 import json
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -16,7 +18,13 @@ from status_service.publisher import (
     StatusMessagePublisher,
     build_status_embed,
 )
-from status_service.settings import SettingsError, StatusServiceSettings, Thresholds
+from status_service.settings import (
+    PROJECT_ROOT,
+    SettingsError,
+    StatusServiceSettings,
+    Thresholds,
+    read_bot_avatar_url,
+)
 from status_service.store import StateStore
 
 SECRET = "0123456789abcdef-test"
@@ -173,6 +181,40 @@ class SettingsTests(unittest.TestCase):
                 with self.subTest(name=name, raw=raw), self.assertRaises(SettingsError):
                     StatusServiceSettings.from_env({"STATUS_HEARTBEAT_SECRET": SECRET, name: raw})
 
+    def test_thumbnail_env_overrides_config_and_must_be_https(self) -> None:
+        settings = StatusServiceSettings.from_env(
+            {"STATUS_HEARTBEAT_SECRET": SECRET, "STATUS_THUMBNAIL_URL": "https://example.invalid/a.png"}
+        )
+        self.assertEqual(settings.thumbnail_url, "https://example.invalid/a.png")
+        with self.assertRaises(SettingsError):
+            StatusServiceSettings.from_env(
+                {"STATUS_HEARTBEAT_SECRET": SECRET, "STATUS_THUMBNAIL_URL": "http://example.invalid/a.png"}
+            )
+
+    def test_bot_avatar_is_read_from_config_json(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "config.json"
+            path.write_text(
+                json.dumps({"bot": {"assets": {"avatar": "https://example.invalid/avatar.png"}}}),
+                encoding="utf-8",
+            )
+            self.assertEqual(read_bot_avatar_url(path), "https://example.invalid/avatar.png")
+
+            for broken in ("{not json", json.dumps({"bot": {}}), json.dumps({"bot": {"assets": {"avatar": 5}}})):
+                with self.subTest(broken=broken):
+                    path.write_text(broken, encoding="utf-8")
+                    self.assertEqual(read_bot_avatar_url(path), "")
+            self.assertEqual(read_bot_avatar_url(Path(temp_dir) / "missing.json"), "")
+
+    def test_status_service_does_not_import_bot_logger(self) -> None:
+        # utils.logger enables DEBUG file logging for every library, which
+        # would write discord.py webhook URLs (with tokens) to logs/.
+        code = "import sys, status_service.__main__; print('utils.logger' in sys.modules)"
+        result = subprocess.run(
+            [sys.executable, "-c", code], cwd=PROJECT_ROOT, capture_output=True, text=True, check=True
+        )
+        self.assertEqual(result.stdout.strip(), "False")
+
     def test_rejects_non_https_webhook(self) -> None:
         with self.assertRaises(SettingsError):
             StatusServiceSettings.from_env(
@@ -305,17 +347,23 @@ class EmbedTests(unittest.TestCase):
         embed = build_status_embed(evaluation, "Miyabi Bot", 1000.0)
 
         names = [field.name for field in embed.fields]
-        self.assertIn("Онлайн", embed.title)
-        self.assertIn("Останній heartbeat", names)
-        self.assertIn("Сервери", names)
-        self.assertIn("Затримка gateway", names)
+        self.assertIn("Online", embed.title)
+        self.assertIn("Last heartbeat", names)
+        self.assertIn("Servers", names)
+        self.assertIn("Gateway latency", names)
+        self.assertIsNone(embed.thumbnail.url)
+
+    def test_thumbnail_is_set_when_configured(self) -> None:
+        evaluation = evaluate(heartbeat(), 1000.0, 1000.0, THRESHOLDS)
+        embed = build_status_embed(evaluation, "Miyabi Bot", 1000.0, "https://example.invalid/a.png")
+        self.assertEqual(embed.thumbnail.url, "https://example.invalid/a.png")
 
     def test_offline_embed_omits_live_metrics(self) -> None:
         evaluation = evaluate(heartbeat(), 2000.0, 1000.0, THRESHOLDS)
         embed = build_status_embed(evaluation, "Miyabi Bot", 2000.0)
 
-        self.assertIn("Офлайн", embed.title)
-        self.assertEqual([field.name for field in embed.fields], ["Останній heartbeat"])
+        self.assertIn("Offline", embed.title)
+        self.assertEqual([field.name for field in embed.fields], ["Last heartbeat"])
 
 
 class MonitorTests(unittest.IsolatedAsyncioTestCase):
@@ -358,17 +406,17 @@ class MonitorTests(unittest.IsolatedAsyncioTestCase):
         monitor.record_heartbeat(payload())
         await monitor.tick()
         self.assertEqual(self.webhook.sent, 1)
-        self.assertIn("Онлайн", self.last_title())
+        self.assertIn("Online", self.last_title())
 
         # Heartbeats stop: the bot cannot report this itself.
         self.clock.now += 91
         await monitor.tick()
-        self.assertIn("Офлайн", self.last_title())
+        self.assertIn("Offline", self.last_title())
 
         self.clock.now += 30
         monitor.record_heartbeat(payload())
         await monitor.tick()
-        self.assertIn("Онлайн", self.last_title())
+        self.assertIn("Online", self.last_title())
         self.assertEqual(self.webhook.sent, 1)
         self.assertEqual(len(self.webhook.messages), 1)
 
@@ -410,7 +458,7 @@ class MonitorTests(unittest.IsolatedAsyncioTestCase):
         restarted = self.make_monitor()
         await restarted.tick()
 
-        self.assertIn("Офлайн", self.last_title())
+        self.assertIn("Offline", self.last_title())
         self.assertEqual(self.webhook.sent, 1)
 
     async def test_publish_failure_backs_off_and_recovers(self) -> None:

@@ -1,3 +1,4 @@
+import logging
 import os
 import sys
 
@@ -10,6 +11,10 @@ from status_service.settings import PROJECT_ROOT, SettingsError, StatusServiceSe
 
 
 def configure_logging() -> None:
+    # discord.py logs full webhook URLs (including the token) at DEBUG level.
+    # Keep that logger at INFO even if some import configures root logging.
+    logging.getLogger("discord.webhook").setLevel(logging.INFO)
+
     level = "DEBUG" if os.getenv("DEBUG", "False").lower() == "true" else "INFO"
     logger.remove()
     logger.add(

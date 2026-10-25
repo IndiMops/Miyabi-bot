@@ -83,6 +83,7 @@ Webhook може редагувати **лише власні** повідомл
 | `STATUS_LISTEN_HOST` / `STATUS_LISTEN_PORT` | сервіс | `127.0.0.1` / `8787` | Адреса HTTP-сервера. |
 | `STATUS_WEBHOOK_URL` | сервіс | порожньо | Webhook каналу статусу. Порожньо — публікація вимкнена. |
 | `STATUS_DISPLAY_NAME` | сервіс | `Miyabi Bot` | Назва в заголовку embed. |
+| `STATUS_THUMBNAIL_URL` | сервіс | `bot.assets.avatar` з `config.json` | Thumbnail embed (лише `https://`). Без значення й без `config.json` — embed без thumbnail. |
 | `STATUS_STATE_FILE` | сервіс | `data/status_service_state.json` | State-файл (відносно кореня репо). |
 | `STATUS_MESSAGE_ID` | сервіс | порожньо | Лише для відновлення після втрати state-файлу. |
 | `STATUS_RECREATE_MISSING_MESSAGE` | сервіс | `true` | Створювати нове повідомлення, якщо старе видалили. |

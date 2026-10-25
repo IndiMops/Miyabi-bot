@@ -105,7 +105,9 @@ class StatusMonitor:
         if not self.should_publish(evaluation, now):
             return evaluation
 
-        embed = build_status_embed(evaluation, self.settings.display_name, now)
+        embed = build_status_embed(
+            evaluation, self.settings.display_name, now, self.settings.thumbnail_url
+        )
         try:
             await self.publisher.publish(embed)
         except PublishError as error:

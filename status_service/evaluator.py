@@ -16,6 +16,7 @@ time a heartbeat was received, so clock skew on the bot host does not matter):
             reported a graceful shutdown, or it has been not ready for longer
             than `starting_grace`.
 """
+
 import math
 from dataclasses import asdict, dataclass
 from enum import Enum
@@ -86,7 +87,9 @@ class Heartbeat:
         if not isinstance(data, dict):
             raise PayloadError("stored heartbeat must be an object")
         payload = {**data, "schema": SUPPORTED_SCHEMA}
-        return cls.from_payload(payload, expected_service, _timestamp(data, "received_at"))
+        return cls.from_payload(
+            payload, expected_service, _timestamp(data, "received_at")
+        )
 
 
 @dataclass(frozen=True)
@@ -104,30 +107,47 @@ def evaluate(
 ) -> Evaluation:
     if heartbeat is None:
         if now - monitor_started_at < thresholds.offline_after:
-            return Evaluation(ServiceState.UNKNOWN, "Очікую перший heartbeat")
-        return Evaluation(ServiceState.OFFLINE, "Heartbeat ще жодного разу не надходив")
+            return Evaluation(ServiceState.UNKNOWN, "Waiting for first heartbeat")
+        return Evaluation(ServiceState.OFFLINE, "Heartbeat has never been received")
 
     age = now - heartbeat.received_at
     if age > thresholds.offline_after:
         return Evaluation(
-            ServiceState.OFFLINE, f"Немає heartbeat понад {int(age)} с", heartbeat
+            ServiceState.OFFLINE,
+            f"No heartbeat received for over {int(age)} seconds",
+            heartbeat,
         )
     if heartbeat.shutting_down:
-        return Evaluation(ServiceState.OFFLINE, "Бот штатно завершив роботу", heartbeat)
+        return Evaluation(
+            ServiceState.OFFLINE, "Bot has shut down gracefully", heartbeat
+        )
     if not heartbeat.ready:
         if heartbeat.uptime_seconds < thresholds.starting_grace:
-            return Evaluation(ServiceState.STARTING, "Бот підключається до Discord", heartbeat)
-        return Evaluation(ServiceState.OFFLINE, "Бот не готовий до роботи", heartbeat)
+            return Evaluation(
+                ServiceState.STARTING, "Bot is connecting to Discord", heartbeat
+            )
+        return Evaluation(ServiceState.OFFLINE, "Bot is not ready for work", heartbeat)
     if not heartbeat.gateway_connected:
-        return Evaluation(ServiceState.DEGRADED, "Перепідключення до Discord gateway", heartbeat)
-    if heartbeat.latency_ms is not None and heartbeat.latency_ms > thresholds.degraded_latency_ms:
-        return Evaluation(ServiceState.DEGRADED, "Висока затримка Discord gateway", heartbeat)
-    return Evaluation(ServiceState.ONLINE, "Працює штатно", heartbeat)
+        return Evaluation(
+            ServiceState.DEGRADED, "Reconnecting to Discord gateway", heartbeat
+        )
+    if (
+        heartbeat.latency_ms is not None
+        and heartbeat.latency_ms > thresholds.degraded_latency_ms
+    ):
+        return Evaluation(
+            ServiceState.DEGRADED, "High Discord gateway latency", heartbeat
+        )
+    return Evaluation(ServiceState.ONLINE, "Operates normally", heartbeat)
 
 
 def _number(data: dict, key: str) -> float:
     value = data.get(key)
-    if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
+    if (
+        isinstance(value, bool)
+        or not isinstance(value, (int, float))
+        or not math.isfinite(value)
+    ):
         raise PayloadError(f"{key} must be a finite number")
     return float(value)
 

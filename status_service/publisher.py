@@ -20,11 +20,11 @@ UNKNOWN_MESSAGE = 10008
 UNKNOWN_WEBHOOK = 10015
 
 STATE_STYLE = {
-    ServiceState.ONLINE: (0x41E332, "🟢", "Онлайн"),
-    ServiceState.DEGRADED: (0xFFCC4D, "🟡", "Працює з проблемами"),
-    ServiceState.STARTING: (0x66C7FF, "🔵", "Запускається"),
-    ServiceState.OFFLINE: (0xDD2E44, "🔴", "Офлайн"),
-    ServiceState.UNKNOWN: (0x4C5D6D, "⚪", "Невідомо"),
+    ServiceState.ONLINE: (0x41E332, "🟢", "Online"),
+    ServiceState.DEGRADED: (0xFFCC4D, "🟡", "Degraded"),
+    ServiceState.STARTING: (0x66C7FF, "🔵", "Starting"),
+    ServiceState.OFFLINE: (0xDD2E44, "🔴", "Offline"),
+    ServiceState.UNKNOWN: (0x4C5D6D, "⚪", "Unknown"),
 }
 
 
@@ -40,20 +40,11 @@ class PublishError(RuntimeError):
     pass
 
 
-def format_duration(seconds: float) -> str:
-    seconds = int(max(0, seconds))
-    days, seconds = divmod(seconds, 86400)
-    hours, seconds = divmod(seconds, 3600)
-    minutes = seconds // 60
-    if days:
-        return f"{days} д {hours} год"
-    if hours:
-        return f"{hours} год {minutes} хв"
-    return f"{minutes} хв"
-
-
 def build_status_embed(
-    evaluation: Evaluation, display_name: str, now: float
+    evaluation: Evaluation,
+    display_name: str,
+    now: float,
+    thumbnail_url: str = "",
 ) -> discord.Embed:
     color, icon, label = STATE_STYLE[evaluation.state]
     embed = discord.Embed(
@@ -61,11 +52,13 @@ def build_status_embed(
         description=evaluation.reason,
         color=color,
     )
+    if thumbnail_url:
+        embed.set_thumbnail(url=thumbnail_url)
     heartbeat = evaluation.heartbeat
     if heartbeat is not None:
         received = int(heartbeat.received_at)
         embed.add_field(
-            name="Останній heartbeat", value=f"<t:{received}:R> (<t:{received}:T>)"
+            name="Last heartbeat", value=f"<t:{received}:R> (<t:{received}:T>)"
         )
         if evaluation.state in (
             ServiceState.ONLINE,
@@ -75,23 +68,21 @@ def build_status_embed(
             started = int(heartbeat.process_started_at)
             embed.add_field(
                 name="Uptime",
-                value=f"<t:{started}:R> (з <t:{started}:f>)",
+                value=f"<t:{started}:R> (since <t:{started}:f>)",
             )
             if heartbeat.guild_count is not None:
-                embed.add_field(name="Сервери", value=str(heartbeat.guild_count))
+                embed.add_field(name="Servers", value=str(heartbeat.guild_count))
             latency = (
                 "—"
                 if heartbeat.latency_ms is None
-                else f"{heartbeat.latency_ms:.0f} мс"
+                else f"{heartbeat.latency_ms:.0f} ms"
             )
-            embed.add_field(name="Затримка gateway", value=latency)
+            embed.add_field(name="Gateway latency", value=latency)
             embed.add_field(
                 name="Gateway",
-                value=(
-                    "підключено" if heartbeat.gateway_connected else "перепідключення"
-                ),
+                value=("connected" if heartbeat.gateway_connected else "reconnecting"),
             )
-    embed.set_footer(text="Оновлено")
+    embed.set_footer(text="Updated")
     embed.timestamp = discord.utils.utcnow()
     return embed
 
