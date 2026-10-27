@@ -4,21 +4,63 @@
 
 ## Main checks
 
-Install the dev tools:
+Install exactly the versions CI uses (pip verifies every package hash):
 
 ```powershell
-python -m pip install pytest ruff
+python -m pip install --require-hashes -r requirements.lock -r requirements-dev.lock
 ```
 
 Run the checks that match the current CI:
 
 ```powershell
+python -m pip check
 python -m compileall -q bot.py cogs embeds utils views status_service
 python -m ruff check --select E9,F63,F7,F82 .
 python -m pytest
 ```
 
-The local environment runs on Python 3.14.6, but CI uses Python 3.11.
+CI and the lock files target Python 3.11, the supported version. A newer local
+interpreter usually works, but a result there does not prove 3.11
+compatibility; CI is the reference.
+
+## Dependencies
+
+| File | Edited by | Content |
+|---|---|---|
+| `requirements.txt` | hand | Direct runtime dependencies with version ranges. |
+| `requirements.lock` | generated | Every runtime package (including transitive ones) pinned to an exact version with hashes. |
+| `requirements-dev.txt` | hand | Dev/CI tools pinned to exact versions: `pytest`, `ruff`, and `uv`. |
+| `requirements-dev.lock` | generated | Dev tools and their dependencies with hashes, constrained to the versions in `requirements.lock`. |
+
+Packages are always installed with **pip**. [`uv`](https://docs.astral.sh/uv/)
+is used only to generate the lock files, because it can resolve for
+Python 3.11 and for both Linux and Windows (`--universal`) from any machine.
+Platform- or version-specific packages (`colorama`, `win32-setctime`,
+`audioop-lts`, `typing-extensions`) get environment markers, so one lock file
+serves CI, a future Docker image, and local Windows development.
+
+Regenerate the lock files after changing `requirements.txt` or
+`requirements-dev.txt` (run from the repository root, with the dev lock
+installed):
+
+```powershell
+python -m uv pip compile requirements.txt --universal --python-version 3.11 --generate-hashes -o requirements.lock
+python -m uv pip compile requirements-dev.txt --constraint requirements.lock --universal --python-version 3.11 --generate-hashes -o requirements-dev.lock
+```
+
+uv keeps the versions already pinned in the existing lock file and changes only
+what the new requirements need. To deliberately update packages:
+
+```powershell
+# one package
+python -m uv pip compile requirements.txt --universal --python-version 3.11 --generate-hashes -o requirements.lock --upgrade-package aiohttp
+# everything (review the diff carefully)
+python -m uv pip compile requirements.txt --universal --python-version 3.11 --generate-hashes -o requirements.lock --upgrade
+```
+
+Always regenerate `requirements-dev.lock` after `requirements.lock`, then run
+the checks above and commit the `.txt` and `.lock` files together. CI fails
+the `Dependencies` job if a lock file does not match its requirements file.
 
 A full `ruff check .` is much stricter than CI and currently reports many style
 and modernization issues. Do not auto-fix the whole project together with a
@@ -46,26 +88,79 @@ Not covered yet:
 
 ## CI
 
-The [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) workflow:
+Branch flow: task branch → PR into `dev` → PR from `dev` into `main`.
 
-- runs on pushes to `main` and `dev`;
-- runs on pull requests to `main` and `dev`;
-- uses Ubuntu and Python 3.11;
-- installs the runtime requirements, `pytest`, and `ruff`;
-- runs compileall, the critical Ruff subset, and pytest.
+The [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) workflow runs:
 
-`pytest` and `ruff` are not pinned in a separate dev requirements or lock
-file, so CI installs their latest versions.
+- on a push to any branch (tag pushes are handled by the release workflow);
+- on pull requests into `main` and `dev`;
+- manually: **Actions → CI → Run workflow**, then pick a branch;
+- from the release workflow (`workflow_call`).
 
-Release workflow:
+It has three independent jobs on Ubuntu with Python 3.11. Each one shows up as
+a separate check on a PR:
 
-- runs for `v*.*.*` tags;
-- uses Python 3.11;
-- runs pytest;
-- creates a draft GitHub Release with automatic release notes.
+| Job | Steps |
+|---|---|
+| `Dependencies (install, consistency, lock files)` | hash-checked install of both lock files, `pip check`, lock files up to date |
+| `Lint (syntax + Ruff)` | `compileall`, critical Ruff subset (`E9,F63,F7,F82`) |
+| `Tests (pytest, Python 3.11)` | `pytest -ra` without `.env` or any secret |
 
-It does not run compileall/Ruff and does not verify that the tag matches
-`config.json → bot.version`.
+The workflow token is read-only (`contents: read`), checkout does not keep
+credentials, and all actions are pinned to full commit SHAs with the version
+in a comment. A newer PR run cancels the previous run of the same PR; pushes
+are never cancelled.
+
+The tests need no Discord token, no network beyond `127.0.0.1`, and no
+database. Without `.env`, `Config` falls back to its defaults.
+
+### Known failures
+
+`tests/test_character_routes.py` has two failing tests:
+`test_alice_has_expected_paginated_sections` and
+`test_alice_opens_basic_info_and_keeps_tabs_in_sections`. They expect the
+planned Alice layout (three "Combat mechanics" pages, page titles without a
+subtitle), while `embeds/wiki/characters/agents/alice.py` currently has one
+combat page titled "… — 1/3". This is an unfinished content issue that is
+tracked separately from CI, so the `Tests` job stays red until it is resolved.
+Do not change these tests just to turn CI green.
+
+## Releases
+
+The [`.github/workflows/release.yml`](../.github/workflows/release.yml)
+workflow runs when a `v*.*.*` tag is pushed:
+
+1. `Verify tag`: the tag must equal `v` + `config.json → bot.version`, and the
+   tagged commit must be on `main`;
+2. `CI checks`: the full CI workflow above;
+3. `Create draft GitHub Release`: only if both pass, using the `gh` CLI with
+   generated notes. Only this job can write to the repository
+   (`contents: write`).
+
+Publishing the draft stays a manual step on GitHub.
+
+Existing tags (`v0.1.0`, `v0.1.1`) are not changed or re-checked. They
+predate this check, and `config.json` still says `0.0.1`. For the next
+release:
+
+1. In a task branch, set `bot.version` (for example to `0.2.0`) and
+   `bot.last_update`; PR into `dev`.
+2. PR `dev` into `main` once CI is green, and merge.
+3. Tag the merge commit on `main`, then push the tag:
+
+   ```powershell
+   git switch main
+   git pull
+   git tag -a v0.2.0 -m "v0.2.0"
+   git push origin v0.2.0
+   ```
+
+4. Review the draft release on GitHub and publish it.
+
+If the tag and `bot.version` differ, the workflow stops with an error that
+names both values. Delete the unpublished tag (`git push --delete origin
+vX.Y.Z` and `git tag -d vX.Y.Z`), fix the version through a PR, and tag
+again.
 
 ## Logs
 
@@ -165,7 +260,7 @@ root and run `python bot.py` again.
 3. Protect dev commands with owner/permission checks regardless of `DEBUG`.
 4. Make `/help` the single source of command metadata.
 5. Fetch command IDs automatically instead of a manual JSON list.
-6. Pin dev dependencies (`pytest`, `ruff`) in a separate requirements file.
+6. Resolve the two known Alice test failures (see [Known failures](#known-failures)).
 7. Add tests for `NavView`, help callbacks, and all character branches.
 8. Replace temporary Discord attachment URLs with stable assets.
 9. Define a deployment process and a version check before release.

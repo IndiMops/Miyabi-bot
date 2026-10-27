@@ -1,0 +1,7 @@
+# Development and CI tools (exact versions).
+# Exact versions of their transitive dependencies, with hashes, live in
+# requirements-dev.lock; see docs/development.md → "Dependencies".
+pytest==9.1.1
+ruff==0.17.0
+# Only generates the *.lock files; packages are still installed with pip.
+uv==0.13.0

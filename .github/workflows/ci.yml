@@ -1,35 +1,116 @@
-name: CI - Tests and Lint
+name: CI
 
 on:
   push:
-    branches: ["main", "dev"]
+    # Every working branch. Tag pushes are not matched here; release.yml
+    # runs the same checks for v*.*.* tags through workflow_call.
+    branches: ["**"]
   pull_request:
     branches: ["main", "dev"]
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  # Pull requests share one group per PR, so a newer commit cancels the run for
+  # the outdated one. Every other run (push, manual, release call) gets its own
+  # group from its run ID: it is never cancelled or queued behind another run.
+  group: ci-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('run-{0}', github.run_id) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  PYTHON_VERSION: "3.11"
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
 
 jobs:
-  build:
+  dependencies:
+    name: Dependencies (install, consistency, lock files)
     runs-on: ubuntu-latest
-
+    timeout-minutes: 10
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: "3.11"
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: |
+            requirements.lock
+            requirements-dev.lock
 
-      - name: Install dependencies
+      - name: Install locked dependencies (hash-checked)
+        run: python -m pip install --require-hashes -r requirements.lock -r requirements-dev.lock
+
+      - name: Check installed packages are compatible
+        run: python -m pip check
+
+      - name: Check lock files match requirements files
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pytest ruff
+          # uv keeps the versions already pinned in the output file, so this
+          # only changes the locks when requirements*.txt no longer match them.
+          python -m uv pip compile requirements.txt --universal --python-version 3.11 --generate-hashes -o requirements.lock --quiet
+          python -m uv pip compile requirements-dev.txt --constraint requirements.lock --universal --python-version 3.11 --generate-hashes -o requirements-dev.lock --quiet
+          if ! git diff --exit-code -- requirements.lock requirements-dev.lock; then
+            echo "::error::Lock files are out of date. Regenerate them as described in docs/development.md (Dependencies) and commit the result."
+            exit 1
+          fi
 
-      - name: Check Python syntax
+  lint:
+    name: Lint (syntax + Ruff)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: |
+            requirements.lock
+            requirements-dev.lock
+
+      - name: Install locked dev tools (hash-checked)
+        run: python -m pip install --require-hashes -r requirements-dev.lock
+
+      - name: Check Python syntax (compileall)
         run: python -m compileall -q bot.py cogs embeds utils views status_service
 
-      - name: Run critical lint checks
-        run: ruff check --select E9,F63,F7,F82 .
+      - name: Run critical Ruff checks
+        run: python -m ruff check --select E9,F63,F7,F82 --output-format=github .
 
-      - name: Run tests (pytest)
-        run: pytest
+  test:
+    name: Tests (pytest, Python 3.11)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: |
+            requirements.lock
+            requirements-dev.lock
+
+      - name: Install locked dependencies (hash-checked)
+        run: python -m pip install --require-hashes -r requirements.lock -r requirements-dev.lock
+
+      # No .env and no secrets: the tests must not need a Discord token or network.
+      - name: Run tests
+        run: python -m pytest -ra
