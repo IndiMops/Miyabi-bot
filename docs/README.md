@@ -15,6 +15,7 @@ code always remains the source of truth.
 4. [Available Discord commands](commands.md)
 5. [Development, checks, and diagnostics](development.md)
 6. [Status monitoring](status-monitoring.md)
+7. [Docker](docker.md)
 
 The directory also contains the
 [Privacy Policy](privacy.md) and [Terms of Service](terms.md).

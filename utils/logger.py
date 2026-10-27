@@ -13,9 +13,12 @@ Environment Variables:
 - DEBUG: Set to 'true' to enable DEBUG logging; otherwise, INFO logging is used.
 Log File:
 - Logs are stored in 'logs/bot.log' with a rotation size of 10 MB and retained for 10 days.
+- Standard `logging` records (discord.py, aiohttp) go to 'logs/standard.log', rotated
+  at 10 MB with 10 backups.
 """
 import sys
 import logging
+import logging.handlers
 import os
 
 from dotenv import load_dotenv
@@ -60,8 +63,17 @@ console_formatter = logging.Formatter(
 )
 console_handler.setFormatter(console_formatter)
 
-# Format for standard in-file logs
-file_handler = logging.FileHandler("logs/standard.log", mode="a", encoding="utf-8")
+# Format for standard in-file logs. Rotated like logs/bot.log so it cannot grow
+# without bound; only the bot process writes this file (status_service has its own).
+STANDARD_LOG_MAX_BYTES = 10 * 1024 * 1024
+STANDARD_LOG_BACKUP_COUNT = 10
+file_handler = logging.handlers.RotatingFileHandler(
+    "logs/standard.log",
+    mode="a",
+    maxBytes=STANDARD_LOG_MAX_BYTES,
+    backupCount=STANDARD_LOG_BACKUP_COUNT,
+    encoding="utf-8",
+)
 file_handler.setLevel(logging.DEBUG)
 file_formatter = logging.Formatter(
     "%(asctime)s | [%(levelname)s] %(name)s:%(lineno)d - %(message)s",
