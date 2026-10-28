@@ -77,7 +77,7 @@ python -m venv venv
 # Windows: .\venv\Scripts\Activate.ps1
 # Linux/macOS: source venv/bin/activate
 
-python -m pip install -r requirements.txt
+python -m pip install --require-hashes -r requirements.lock
 ```
 
 ### Configuration
@@ -121,11 +121,13 @@ See [docs/status-monitoring.md](docs/status-monitoring.md) for setup.
 
 ## Development
 
-Install the dev tools and run the same checks as CI:
+Install the runtime and dev dependencies from the lock files (pip verifies
+every package hash) and run the same checks as CI:
 
 ```bash
-python -m pip install pytest ruff
+python -m pip install --require-hashes -r requirements.lock -r requirements-dev.lock
 
+python -m pip check
 python -m compileall -q bot.py cogs embeds utils views status_service
 python -m ruff check --select E9,F63,F7,F82 .
 python -m pytest
