@@ -114,3 +114,64 @@ jobs:
       # No .env and no secrets: the tests must not need a Discord token or network.
       - name: Run tests
         run: python -m pytest -ra
+
+  docker:
+    # Independent of the other jobs, so the image is verified even while a
+    # test fails. A release still needs every job in this workflow to pass.
+    name: Docker image (build + smoke test + compose, not pushed)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      # Throwaway compose project and image tag that exist only on this runner.
+      COMPOSE_PROJECT_NAME: miyabi-ci
+      MIYABI_IMAGE: miyabi-bot:compose-ci
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Build image
+        run: |
+          version="ci-${GITHUB_SHA::7}"
+          echo "BOT_VERSION=$version" >> "$GITHUB_ENV"
+          docker build \
+            --build-arg BOT_VERSION="$version" \
+            --build-arg VCS_REF="$GITHUB_SHA" \
+            --tag miyabi-bot:ci .
+
+      - name: Smoke test image
+        run: bash scripts/docker-smoke-test.sh miyabi-bot:ci "$BOT_VERSION"
+
+      - name: Create throwaway .env (dummy status secret only)
+        run: |
+          # Generated for this run; no real token or webhook is involved.
+          umask 077
+          printf 'STATUS_HEARTBEAT_SECRET=%s\n' "$(openssl rand -hex 24)" > .env
+
+      - name: Validate and build with compose
+        run: |
+          docker compose config --quiet
+          docker compose build
+
+      - name: Start status service and wait for its healthcheck
+        run: |
+          # --wait returns only when the service's healthcheck reports healthy
+          # and fails if it turns unhealthy or the timeout expires. The bot is
+          # not started: it would need a real Discord token.
+          docker compose up --detach --wait --wait-timeout 120 status
+          health="$(docker inspect --format '{{.State.Health.Status}}' "$(docker compose ps --quiet status)")"
+          echo "status service health: $health"
+          test "$health" = healthy
+
+      - name: Show status service logs
+        if: always()
+        run: docker compose logs --no-color status || true
+
+      - name: Remove compose test resources
+        if: always()
+        run: |
+          # Runner-local project "miyabi-ci" only; never run `down --volumes`
+          # against the production project.
+          touch .env
+          docker compose down --volumes --remove-orphans

@@ -73,6 +73,7 @@ small functional change: it will produce a large unrelated diff.
 | [`tests/test_core.py`](../tests/test_core.py) | Disabled-folder extension filtering, the missing-token error, color/JSON helpers, `PaginationView` edge cases. |
 | [`tests/test_character_routes.py`](../tests/test_character_routes.py) | Agent lookup by key and aliases, case/whitespace normalization, full `Back` history, Fire routes matching real embed keys, autocomplete ranking and the 25-result limit, the `agent` parameter with its autocomplete callback, Alice's paginated sections and tabs. |
 | [`tests/test_status_heartbeat.py`](../tests/test_status_heartbeat.py) | Bot-side heartbeat payload, reporter settings, delivery with retry/backoff, env float parsing. |
+| [`tests/test_version_and_logging.py`](../tests/test_version_and_logging.py) | Version order (`BOT_VERSION` → Git → `config.json`), Git queried once, a real process without Git, `standard.log` rotation. |
 | [`tests/test_status_service.py`](../tests/test_status_service.py) | State evaluation, payload validation, settings, the state store, the webhook publisher, the status embed, the monitor loop, and the HTTP endpoints. |
 
 Not covered yet:
@@ -168,9 +169,21 @@ again.
 |---|---|---|
 | Loguru console | `INFO` or `DEBUG` | `DEBUG` is enabled via `.env`. |
 | `logs/bot.log` | `DEBUG` | Rotation at 10 MB, retention 10 days, old logs compressed to ZIP. |
-| `logs/standard.log` | `DEBUG` | Standard Python logging, no rotation. |
+| `logs/standard.log` | `DEBUG` | Standard Python logging (discord.py, aiohttp), rotation at 10 MB, 10 backups. |
+| `logs/status_service.log` | `DEBUG` | Written only by `status_service`; rotation at 10 MB, retention 10 days. |
 
-The `logs/` directory is ignored by Git.
+The `logs/` directory is ignored by Git. In Docker, see
+[Docker → Logs](docker.md#logs).
+
+Known issue (Windows, local only): log paths are relative to the working
+directory, and importing `utils.logger` in tests opens the same
+`logs/bot.log` and `logs/standard.log` as a bot started from the repository
+root. If both run at once and a file reaches 10 MB, Windows refuses to rename
+the open file: rotation fails and `--- Logging error ---` messages appear on
+stderr while both processes run; records written during failed rotation
+attempts may be missing from the file. The processes keep running. Docker and
+CI are not affected (one process per container and per runner). Until this is
+fixed separately, stop the local bot before running the tests.
 
 For initial diagnostics, look in `logs/bot.log` for:
 

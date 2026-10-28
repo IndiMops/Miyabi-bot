@@ -1,0 +1,16 @@
+# Allowlist: ignore everything, then re-include only what the Dockerfile copies.
+# This keeps .env, .git, venv/, logs/, data/ and other local files out of the
+# build context, so they cannot end up in the image or in build logs.
+*
+!bot.py
+!config.json
+!requirements.lock
+!cogs/
+!embeds/
+!utils/
+!views/
+!status_service/
+
+# Never ship bytecode caches from a local checkout.
+**/__pycache__
+**/*.py[cod]

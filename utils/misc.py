@@ -1,9 +1,13 @@
+import functools
 import json
+import os
 import subprocess
 from pathlib import Path
 from typing import Any
 
 from utils.logger import logger
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 
 def load_json(file_path: str | Path) -> dict[str, Any] | list[Any]:
@@ -53,15 +57,41 @@ HEXtoColor = hex_to_color
 HEXtoRGB = hex_to_rgb
 
 
-def get_version(default_version: str):
+@functools.cache
+def _git_revision() -> str | None:
+    """Return the short Git commit hash of the checkout, or None without Git metadata.
+
+    Cached: Git is queried at most once per process.
+    """
     try:
-        version = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"]).strip().decode("utf-8")
-        if version.isalnum():
-            return f"dev-{version}"
-        return version
-    except Exception as e:
-        logger.error(f"Failed to get version from git: {e}")
-        return default_version
+        revision = subprocess.check_output(
+            ["git", "rev-parse", "--short", "HEAD"],
+            cwd=PROJECT_ROOT,
+            stderr=subprocess.DEVNULL,
+            timeout=5,
+        ).strip().decode("utf-8")
+    except (OSError, subprocess.SubprocessError) as e:
+        logger.warning(f"Git revision is unavailable ({type(e).__name__}); using the configured version")
+        return None
+    return revision if revision.isalnum() else None
+
+
+def get_version(default_version: str) -> str:
+    """
+    Return the version string shown to users.
+
+    Order: the `BOT_VERSION` environment variable (set when a Docker image is
+    built), then `dev-<git hash>` for a local checkout, then `default_version`
+    (`config.json → bot.version`, the canonical release version).
+    """
+    build_version = os.getenv("BOT_VERSION", "").strip()
+    if build_version:
+        return build_version
+
+    revision = _git_revision()
+    if revision:
+        return f"dev-{revision}"
+    return default_version
     
     
 async def fetch_slash_commands(bot):

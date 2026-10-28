@@ -16,6 +16,7 @@ any change.
 |---|---:|---|---|
 | `DISCORD_BOT_TOKEN` | yes | none | Secret Discord Bot token. Without it `Config.require_token()` aborts startup with an error. |
 | `DEBUG` | no | `False` | Console log level and control over loading disabled cog folders. |
+| `BOT_VERSION` | no | empty | Version shown in the presence status. Set by the Docker image build; locally the Git revision (`dev-<hash>`) or `bot.version` is used. See [Docker → Version](docker.md#version). |
 | `STATUS_HEARTBEAT_URL`, `STATUS_HEARTBEAT_SECRET`, and other `STATUS_*` | no | disabled | Heartbeat to the status service. See [Status monitoring](status-monitoring.md). |
 
 A template without secrets is [`.env.example`](../.env.example).
