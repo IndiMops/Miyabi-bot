@@ -1,0 +1,144 @@
+name: Docker publish (dev)
+
+# Publishes a development snapshot of the image to GHCR after every push to
+# dev. It runs only the image checks (the same ones as the CI docker job), not
+# the full CI: it does not mean pytest is green. Releases are not published
+# here, and publishing is not a deployment (see docs/docker.md → "Registry").
+on:
+  push:
+    branches: ["dev"]
+
+permissions:
+  contents: read # checkout, and reading the current dev head
+  packages: write # push to ghcr.io with GITHUB_TOKEN
+
+concurrency:
+  # At most one run of this group executes at a time and a running publish is
+  # never cancelled. GitHub keeps only one waiting run per group: a newer
+  # waiting run cancels an older waiting one, so a skipped intermediate commit
+  # gets no image. This is not a strict queue; the dev-head check before
+  # moving `dev` is what keeps an older run from overwriting it.
+  group: docker-publish-dev
+  cancel-in-progress: false
+
+env:
+  # GHCR paths must be lowercase.
+  IMAGE_NAME: ghcr.io/indimops/miyabi-bot
+
+jobs:
+  publish:
+    name: Build, test and push dev image
+    # Forks have no access to this package path.
+    if: github.repository == 'IndiMops/Miyabi-bot'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      # Throwaway compose project that exists only on this runner and run.
+      COMPOSE_PROJECT_NAME: miyabi-ghcr-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Compute version and tags
+        run: |
+          {
+            echo "BOT_VERSION=dev-${GITHUB_SHA::7}"
+            echo "VCS_REF=$GITHUB_SHA"
+            echo "SHA_IMAGE=$IMAGE_NAME:sha-${GITHUB_SHA::12}"
+            echo "DEV_IMAGE=$IMAGE_NAME:dev"
+          } >> "$GITHUB_ENV"
+
+      - name: Build image
+        run: |
+          docker build \
+            --build-arg BOT_VERSION="$BOT_VERSION" \
+            --build-arg VCS_REF="$VCS_REF" \
+            --tag "$SHA_IMAGE" .
+
+      - name: Smoke test image
+        run: bash scripts/docker-smoke-test.sh "$SHA_IMAGE" "$BOT_VERSION"
+
+      - name: Create throwaway .env (dummy status secret only)
+        run: |
+          # Generated for this run; no real token or webhook is involved.
+          umask 077
+          printf 'STATUS_HEARTBEAT_SECRET=%s\n' "$(openssl rand -hex 24)" > .env
+
+      - name: Start status service from the tested image and wait for its healthcheck
+        env:
+          MIYABI_IMAGE: ${{ env.SHA_IMAGE }}
+        run: |
+          docker compose config --quiet
+          # --no-build and --pull never: compose must run the image built and
+          # smoke-tested above, not build or pull another one. The bot is not
+          # started: it would need a real Discord token.
+          docker compose up --no-build --pull never --detach --wait --wait-timeout 120 status
+          container="$(docker compose ps --quiet status)"
+          image_id="$(docker inspect --format '{{.Image}}' "$container")"
+          expected_id="$(docker image inspect --format '{{.Id}}' "$SHA_IMAGE")"
+          [ "$image_id" = "$expected_id" ] || { echo "::error::status runs $image_id, expected $expected_id"; exit 1; }
+          health="$(docker inspect --format '{{.State.Health.Status}}' "$container")"
+          echo "status service health: $health"
+          test "$health" = healthy
+
+      # Everything below runs only after all checks above have passed.
+      - name: Log in to GHCR
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: printf '%s' "$GHCR_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+
+      - name: Push commit tag
+        run: docker push "$SHA_IMAGE"
+
+      - name: Check this commit is still the dev head
+        id: head
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Checked right before moving `dev`, so a re-run of an older commit
+          # cannot move it back to an older image.
+          head="$(gh api "repos/$GITHUB_REPOSITORY/branches/dev" --jq .commit.sha)"
+          if [ "$head" = "$GITHUB_SHA" ]; then
+            echo "move_dev=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::dev is now at $head; pushed only ${SHA_IMAGE##*:} and left the dev tag unchanged."
+            echo "move_dev=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Push dev tag (same image)
+        if: steps.head.outputs.move_dev == 'true'
+        run: |
+          docker tag "$SHA_IMAGE" "$DEV_IMAGE"
+          docker push "$DEV_IMAGE"
+
+      - name: Verify registry tags point to the tested image
+        env:
+          MOVE_DEV: ${{ steps.head.outputs.move_dev }}
+        run: |
+          # The registry digest docker recorded when pushing the tested image.
+          local_digest="$(docker image inspect --format '{{range .RepoDigests}}{{println .}}{{end}}' "$SHA_IMAGE" \
+            | sed -n "s|^$IMAGE_NAME@||p" | head -n 1)"
+          [ -n "$local_digest" ] || { echo "::error::No $IMAGE_NAME digest recorded for $SHA_IMAGE"; exit 1; }
+          echo "tested image: $local_digest"
+          tags=("$SHA_IMAGE")
+          if [ "$MOVE_DEV" = true ]; then tags+=("$DEV_IMAGE"); fi
+          for tag in "${tags[@]}"; do
+            remote_digest="$(docker buildx imagetools inspect "$tag" --format '{{.Manifest.Digest}}')"
+            echo "$tag: $remote_digest"
+            [ "$remote_digest" = "$local_digest" ] || { echo "::error::$tag points to $remote_digest, not the tested image $local_digest"; exit 1; }
+          done
+
+      - name: Show status service logs
+        if: always()
+        run: docker compose logs --no-color status || true
+
+      - name: Remove compose test resources and registry login
+        if: always()
+        run: |
+          docker logout ghcr.io || true
+          # Only this run's project ($COMPOSE_PROJECT_NAME); never run
+          # `down --volumes` against the production project.
+          touch .env
+          docker compose down --volumes --remove-orphans

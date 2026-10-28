@@ -126,6 +126,17 @@ combat page titled "… — 1/3". This is an unfinished content issue that is
 tracked separately from CI, so the `Tests` job stays red until it is resolved.
 Do not change these tests just to turn CI green.
 
+### Dev image publishing
+
+A separate workflow,
+[`.github/workflows/docker-publish.yml`](../.github/workflows/docker-publish.yml),
+runs on every push to `dev` only. It builds the image, runs the same image
+checks as the CI `docker` job, and only then pushes
+`ghcr.io/indimops/miyabi-bot` with the tags `dev` and `sha-<12-character SHA>`.
+Its token has `contents: read` and `packages: write`. It does not run pytest,
+so a published image is not a sign of green CI. Details:
+[Docker → Registry](docker.md#registry-ghcr).
+
 ## Releases
 
 The [`.github/workflows/release.yml`](../.github/workflows/release.yml)

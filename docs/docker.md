@@ -164,7 +164,70 @@ Python patch updates, resolve the current digest, replace it in the
 docker buildx imagetools inspect python:3.11-slim-trixie --format '{{json .Manifest.Digest}}'
 ```
 
+## Registry (GHCR)
+
+Development images are published to GitHub Container Registry:
+
+```text
+ghcr.io/indimops/miyabi-bot
+```
+
+The [`docker-publish.yml`](../.github/workflows/docker-publish.yml) workflow
+runs on every push to `dev` (including PR merges into `dev`), and on nothing
+else: not on pull requests, other branches, or tags. It builds the image with
+`BOT_VERSION=dev-<7-character SHA>` and `VCS_REF=<full SHA>`, then runs the
+same image checks as the CI `docker` job against that exact image:
+`scripts/docker-smoke-test.sh`, `docker compose config`, and the `status`
+service started from it (`--no-build --pull never`) in a throwaway compose
+project with a dummy secret until its healthcheck is `healthy`. Only then does
+it log in with the built-in `GITHUB_TOKEN` (`packages: write`) and push.
+
+| Tag | Meaning |
+|---|---|
+| `sha-<12-character SHA>` | The image built from that exact `dev` commit. Never moved; use it to pin a deployment. |
+| `dev` | The latest published `dev` commit. Moves with every push to `dev`. |
+
+There is no `latest` tag and no release image yet.
+
+Only one publish runs at a time, and a running publish is never cancelled.
+While it runs, GitHub keeps just the newest waiting run: if several commits
+reach `dev` in quick succession, the intermediate ones are cancelled and get no
+`sha-` image. Before moving `dev`, the workflow checks that its commit is still
+the head of the `dev` branch; if not (for example, a re-run of an older
+commit), it pushes only the `sha-` tag. After pushing, it checks that each tag
+in the registry has the digest of the tested image.
+
+> [!IMPORTANT]
+> A `dev` image is a development snapshot. The workflow does not run pytest,
+> so a published image does not mean the full CI is green (see
+> [Known failures](development.md#known-failures)).
+
+Pull an image built from a specific commit:
+
+```bash
+docker pull "ghcr.io/indimops/miyabi-bot:sha-$(git rev-parse --short=12 HEAD)"
+docker image inspect --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' \
+  "ghcr.io/indimops/miyabi-bot:sha-$(git rev-parse --short=12 HEAD)"
+```
+
+If the package is private, log in first with a token that has `read:packages`
+(`docker login ghcr.io`).
+
+A future deployment uses the registry image instead of building, by setting
+`MIYABI_IMAGE` (for example in the shell or a compose `.env` on the server):
+
+```bash
+MIYABI_IMAGE=ghcr.io/indimops/miyabi-bot:sha-<12-character SHA> docker compose up -d --no-build
+```
+
+Prefer a `sha-` tag (or a digest) over `dev`, so the server runs a known
+commit.
+
+Publishing is **not** deployment: the workflow only pushes to GHCR. It does
+not connect to the home server and does not start, stop, or update the bot
+there.
+
 ## Not covered yet
 
-Publishing the image to GHCR and deploying it to the home server are a
-separate stage.
+Deploying the image to the home server, and release (version-tagged) images,
+are a separate stage.
