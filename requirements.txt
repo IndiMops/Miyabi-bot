@@ -1,3 +1,7 @@
+# Direct runtime dependencies (version ranges).
+# Exact pinned versions with hashes live in requirements.lock;
+# see docs/development.md → "Dependencies" for how to regenerate it.
+aiohttp>=3.9.0,<4.0
 discord.py>=2.7.1,<3.0
 loguru>=0.7.3,<0.8
 python-box>=7.4.1,<8.0
