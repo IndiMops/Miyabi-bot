@@ -1,0 +1,79 @@
+# Miyabi Bot: the bot and status_service from one image.
+# Usage and volume layout: docs/docker.md. Secrets come only from .env
+# on the host (env_file); they are never part of the image.
+name: miyabi
+
+x-app: &app
+  # Locally built by default; a deployment sets MIYABI_IMAGE to a pinned
+  # registry tag or digest instead of building.
+  image: ${MIYABI_IMAGE:-miyabi-bot:local}
+  build:
+    context: .
+    args:
+      BOT_VERSION: ${BOT_VERSION:-}
+      VCS_REF: ${VCS_REF:-}
+  env_file:
+    - path: .env
+      required: true
+  restart: unless-stopped
+  init: true
+  read_only: true
+  tmpfs:
+    - /tmp
+  cap_drop:
+    - ALL
+  security_opt:
+    - no-new-privileges:true
+  stop_grace_period: 20s
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "5"
+
+services:
+  bot:
+    <<: *app
+    command: ["python", "bot.py"]
+    # discord.py's Client.run() shuts down cleanly only on SIGINT
+    # (KeyboardInterrupt); on Docker's default SIGTERM the process is killed
+    # without closing the gateway or sending the final "shutting_down"
+    # heartbeat. status_service (aiohttp) handles SIGTERM itself.
+    stop_signal: SIGINT
+    environment:
+      # Overrides the 127.0.0.1 value a local .env usually has.
+      STATUS_HEARTBEAT_URL: http://status:8787/heartbeat
+    volumes:
+      - bot-logs:/app/logs
+    # No healthcheck: the bot has no local endpoint that reflects its state.
+    # Its health is what status_service reports from heartbeats.
+
+  status:
+    <<: *app
+    command: ["python", "-m", "status_service"]
+    environment:
+      # Listen on the compose network so the bot container can reach it.
+      # No `ports:` entry, so it is not reachable from outside Docker.
+      STATUS_LISTEN_HOST: 0.0.0.0
+      STATUS_LISTEN_PORT: "8787"
+      STATUS_STATE_FILE: /app/data/status_service_state.json
+    volumes:
+      - status-logs:/app/logs
+      - status-data:/app/data
+    healthcheck:
+      # /health answers 503 when the monitor loop stalls, the state file is
+      # not writable, or the Discord message cannot be updated.
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8787/health', timeout=4)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    # Only if Uptime Kuma runs directly on the host and must poll /health.
+    # Never publish it on 0.0.0.0.
+    # ports:
+    #   - "127.0.0.1:8787:8787"
+
+volumes:
+  bot-logs:
+  status-logs:
+  status-data:

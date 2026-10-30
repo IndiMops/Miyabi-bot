@@ -31,7 +31,7 @@ class CharacterRouteTests(unittest.TestCase):
     def test_alice_has_expected_paginated_sections(self) -> None:
         expected_page_counts = {
             "AliceBasicInfo": 2,
-            "AliceCombatMechanics": 3,
+            "AliceCombatMechanics": 1,
             "AliceSkills": 6,
             "AliceMindscapeCinema": 3,
             "AliceProgression": 4,
@@ -50,7 +50,7 @@ class CharacterRouteTests(unittest.TestCase):
 
         basic_info_pages = CharactersMainEmbeds.get_pages("AliceBasicInfo")
         self.assertEqual(len(basic_info_pages[0].fields), 7)
-        self.assertEqual(len(basic_info_pages[1].fields), 1)
+        self.assertEqual(len(basic_info_pages[1].fields), 3)
 
     def test_alice_opens_basic_info_and_keeps_tabs_in_sections(self) -> None:
         history = ["Main", "PhysicalCharacters", "Alice"]
@@ -61,7 +61,7 @@ class CharacterRouteTests(unittest.TestCase):
             {},
         )
 
-        self.assertEqual(embed.title, "Основна інформація — 1/2")
+        self.assertEqual(embed.title, "Основна інформація: Огляд — 1/2")
         alice_select = next(
             item for item in view.children if hasattr(item, "options")
         )

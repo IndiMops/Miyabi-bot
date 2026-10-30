@@ -1,0 +1,197 @@
+name: CI and Docker publish
+
+# Runs the full CI (ci.yml as a reusable workflow) for every push to dev or
+# main and, only if every CI job succeeded, publishes the image for that commit
+# to GHCR. The image is built once, in the CI docker job; the publish job
+# loads that exact tested image from this run's artifact and never builds.
+# Pull requests never reach this workflow (they run ci.yml directly), so they
+# cannot publish. Publishing is not a deployment (see docs/docker.md →
+# "Registry").
+#
+#   dev  → beta, dev, sha-<12-character SHA>
+#   main → stable, latest, sha-<12-character SHA>
+#
+# Version tags (vX.Y.Z) are added to an existing sha- image by release.yml.
+on:
+  push:
+    branches: ["dev", "main"]
+
+# Every job declares only the permissions it needs.
+permissions: {}
+
+env:
+  # GHCR paths must be lowercase.
+  IMAGE_NAME: ghcr.io/indimops/miyabi-bot
+
+jobs:
+  ci:
+    name: CI
+    uses: ./.github/workflows/ci.yml
+    with:
+      export-image: true
+    permissions:
+      contents: read # checkout only
+
+  publish:
+    name: Push tested ${{ github.ref_name }} image
+    # `needs` without a status function: a failed, cancelled or skipped CI job
+    # skips this job. Forks have no access to this package path.
+    needs: [ci]
+    if: github.repository == 'IndiMops/Miyabi-bot'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read # reading the current branch head
+      packages: write # push to ghcr.io with GITHUB_TOKEN
+    concurrency:
+      # One publish per branch at a time, and a running publish is never
+      # cancelled. CI itself runs in parallel; only publishing is serialized.
+      # GitHub keeps only one waiting job per group: a newer waiting job
+      # cancels an older waiting one, so a skipped intermediate commit gets no
+      # image. This is not a strict queue; the branch-head check before moving
+      # the channel tags is what keeps an older run from overwriting them.
+      group: docker-publish-${{ github.ref_name }}
+      cancel-in-progress: false
+    env:
+      BRANCH: ${{ github.ref_name }}
+      ARTIFACT: ${{ needs.ci.outputs.image_artifact }}
+      EXPECTED_ID: ${{ needs.ci.outputs.image_id }}
+      EXPECTED_SHA256: ${{ needs.ci.outputs.image_archive_sha256 }}
+      BOT_VERSION: ${{ needs.ci.outputs.bot_version }}
+      # Local tag the CI docker job saved the image under.
+      CI_IMAGE: miyabi-bot:ci
+    steps:
+      - name: Compute tags
+        run: |
+          # The channel tags are fixed per branch: a dev run can never move
+          # stable/latest, and a main run can never move beta/dev.
+          case "$BRANCH" in
+            dev) channel_tags="beta dev" ;;
+            main) channel_tags="stable latest" ;;
+            *) echo "::error::No image channel for branch $BRANCH"; exit 1 ;;
+          esac
+          for value in ARTIFACT EXPECTED_ID EXPECTED_SHA256 BOT_VERSION; do
+            [ -n "${!value}" ] || { echo "::error::CI did not report $value for the tested image"; exit 1; }
+          done
+          {
+            echo "SHA_IMAGE=$IMAGE_NAME:sha-${GITHUB_SHA::12}"
+            echo "CHANNEL_TAGS=$channel_tags"
+          } >> "$GITHUB_ENV"
+
+      # Without run-id or a token, the artifact can only come from this run.
+      - name: Download tested image from CI
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ env.ARTIFACT }}
+          path: ${{ runner.temp }}/miyabi-image
+
+      - name: Load tested image (no build)
+        run: |
+          archive="$RUNNER_TEMP/miyabi-image/image.tar"
+          echo "$EXPECTED_SHA256  $archive" | sha256sum --check --strict
+          docker load --input "$archive"
+          image_id="$(docker image inspect --format '{{.Id}}' "$CI_IMAGE")"
+          [ "$image_id" = "$EXPECTED_ID" ] || { echo "::error::Loaded $image_id, but CI tested $EXPECTED_ID"; exit 1; }
+          revision="$(docker image inspect --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' "$CI_IMAGE")"
+          version="$(docker image inspect --format '{{ index .Config.Labels "org.opencontainers.image.version" }}' "$CI_IMAGE")"
+          echo "revision=$revision version=$version"
+          [ "$revision" = "$GITHUB_SHA" ] || { echo "::error::Image revision $revision is not $GITHUB_SHA"; exit 1; }
+          [ "$version" = "$BOT_VERSION" ] || { echo "::error::Image version $version is not $BOT_VERSION"; exit 1; }
+          docker tag "$CI_IMAGE" "$SHA_IMAGE"
+          rm -f "$archive"
+
+      # Everything below runs only after the full CI passed and the loaded
+      # image was proven to be the one CI tested.
+      - name: Log in to GHCR
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: printf '%s' "$GHCR_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+
+      - name: Push commit tag (never overwrite an existing one)
+        id: source
+        run: |
+          # True when a registry image is the tested image. The local image ID
+          # is the config digest with Docker's classic image store, or the
+          # manifest/index digest with the containerd image store; the image
+          # is pushed as it is stored, so one of the two must match.
+          is_tested_image() {
+            local ref="$1" digest config
+            digest="$(docker buildx imagetools inspect "$ref" --format '{{.Manifest.Digest}}')"
+            [ "$digest" = "$EXPECTED_ID" ] && return 0
+            config="$(docker buildx imagetools inspect "$ref" --raw \
+              | python3 -c 'import json, sys; print(json.load(sys.stdin).get("config", {}).get("digest", ""))')"
+            [ "$config" = "$EXPECTED_ID" ]
+          }
+          # A sha- tag is immutable. If it already exists, it is reused only
+          # when it holds exactly the image CI tested in this run.
+          set +e
+          existing="$(docker buildx imagetools inspect "$SHA_IMAGE" --format '{{.Manifest.Digest}}' 2>&1)"
+          code=$?
+          set -e
+          if [ "$code" -eq 0 ]; then
+            if ! is_tested_image "$SHA_IMAGE"; then
+              echo "::error::$SHA_IMAGE already exists ($existing) and is not the image this run tested ($EXPECTED_ID). The sha- tag is immutable and was not changed."
+              exit 1
+            fi
+            echo "::notice::$SHA_IMAGE already holds the tested image ($existing); not pushing again."
+            digest="$existing"
+          elif grep -qi 'not found' <<<"$existing"; then
+            docker push "$SHA_IMAGE"
+            # The registry digest docker recorded when pushing the tested image.
+            digest="$(docker image inspect --format '{{range .RepoDigests}}{{println .}}{{end}}' "$SHA_IMAGE" \
+              | sed -n "s|^$IMAGE_NAME@||p" | head -n 1)"
+          else
+            echo "::error::Could not check whether $SHA_IMAGE exists: $existing"
+            exit 1
+          fi
+          [ -n "$digest" ] || { echo "::error::No $IMAGE_NAME digest recorded for $SHA_IMAGE"; exit 1; }
+          is_tested_image "$IMAGE_NAME@$digest" \
+            || { echo "::error::$IMAGE_NAME@$digest is not the tested image $EXPECTED_ID"; exit 1; }
+          echo "source image: $digest (tested image $EXPECTED_ID)"
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+
+      - name: Check this commit is still the branch head
+        id: head
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Checked right before moving the channel tags, so an older run (or a
+          # re-run of an older commit) cannot move them back to an older image.
+          head="$(gh api "repos/$GITHUB_REPOSITORY/branches/$BRANCH" --jq .commit.sha)"
+          if [ "$head" = "$GITHUB_SHA" ]; then
+            echo "move=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::$BRANCH is now at $head; pushed only ${SHA_IMAGE##*:} and left $CHANNEL_TAGS unchanged."
+            echo "move=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Move channel tags to the same image
+        if: steps.head.outputs.move == 'true'
+        env:
+          DIGEST: ${{ steps.source.outputs.digest }}
+        run: |
+          # Re-points each tag at the existing manifest by digest, without
+          # rebuilding or re-pushing layers. --prefer-index=false keeps the
+          # manifest as it is, so the tag gets exactly the same digest.
+          for tag in $CHANNEL_TAGS; do
+            docker buildx imagetools create --prefer-index=false --tag "$IMAGE_NAME:$tag" "$IMAGE_NAME@$DIGEST"
+          done
+
+      - name: Verify registry tags point to the source image
+        env:
+          DIGEST: ${{ steps.source.outputs.digest }}
+          MOVE: ${{ steps.head.outputs.move }}
+        run: |
+          tags=("$SHA_IMAGE")
+          if [ "$MOVE" = true ]; then
+            for tag in $CHANNEL_TAGS; do tags+=("$IMAGE_NAME:$tag"); done
+          fi
+          for tag in "${tags[@]}"; do
+            remote_digest="$(docker buildx imagetools inspect "$tag" --format '{{.Manifest.Digest}}')"
+            echo "$tag: $remote_digest"
+            [ "$remote_digest" = "$DIGEST" ] || { echo "::error::$tag points to $remote_digest, not the source image $DIGEST"; exit 1; }
+          done
+
+      - name: Remove registry login
+        if: always()
+        run: docker logout ghcr.io || true

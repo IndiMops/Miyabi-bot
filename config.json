@@ -2,7 +2,7 @@
     "bot": {
         "name": "Miyabi",
         "prefix": ".",
-        "version": "0.0.1",
+        "version": "0.1.2",
         "last_update": 1786466846,
         "nav_menu_timeout": 600.0,
         "color": {

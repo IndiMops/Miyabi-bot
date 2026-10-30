@@ -4,21 +4,63 @@
 
 ## Main checks
 
-Install the dev tools:
+Install exactly the versions CI uses (pip verifies every package hash):
 
 ```powershell
-python -m pip install pytest ruff
+python -m pip install --require-hashes -r requirements.lock -r requirements-dev.lock
 ```
 
 Run the checks that match the current CI:
 
 ```powershell
+python -m pip check
 python -m compileall -q bot.py cogs embeds utils views status_service
 python -m ruff check --select E9,F63,F7,F82 .
 python -m pytest
 ```
 
-The local environment runs on Python 3.14.6, but CI uses Python 3.11.
+CI and the lock files target Python 3.11, the supported version. A newer local
+interpreter usually works, but a result there does not prove 3.11
+compatibility; CI is the reference.
+
+## Dependencies
+
+| File | Edited by | Content |
+|---|---|---|
+| `requirements.txt` | hand | Direct runtime dependencies with version ranges. |
+| `requirements.lock` | generated | Every runtime package (including transitive ones) pinned to an exact version with hashes. |
+| `requirements-dev.txt` | hand | Dev/CI tools pinned to exact versions: `pytest`, `ruff`, and `uv`. |
+| `requirements-dev.lock` | generated | Dev tools and their dependencies with hashes, constrained to the versions in `requirements.lock`. |
+
+Packages are always installed with **pip**. [`uv`](https://docs.astral.sh/uv/)
+is used only to generate the lock files, because it can resolve for
+Python 3.11 and for both Linux and Windows (`--universal`) from any machine.
+Platform- or version-specific packages (`colorama`, `win32-setctime`,
+`audioop-lts`, `typing-extensions`) get environment markers, so one lock file
+serves CI, a future Docker image, and local Windows development.
+
+Regenerate the lock files after changing `requirements.txt` or
+`requirements-dev.txt` (run from the repository root, with the dev lock
+installed):
+
+```powershell
+python -m uv pip compile requirements.txt --universal --python-version 3.11 --generate-hashes -o requirements.lock
+python -m uv pip compile requirements-dev.txt --constraint requirements.lock --universal --python-version 3.11 --generate-hashes -o requirements-dev.lock
+```
+
+uv keeps the versions already pinned in the existing lock file and changes only
+what the new requirements need. To deliberately update packages:
+
+```powershell
+# one package
+python -m uv pip compile requirements.txt --universal --python-version 3.11 --generate-hashes -o requirements.lock --upgrade-package aiohttp
+# everything (review the diff carefully)
+python -m uv pip compile requirements.txt --universal --python-version 3.11 --generate-hashes -o requirements.lock --upgrade
+```
+
+Always regenerate `requirements-dev.lock` after `requirements.lock`, then run
+the checks above and commit the `.txt` and `.lock` files together. CI fails
+the `Dependencies` job if a lock file does not match its requirements file.
 
 A full `ruff check .` is much stricter than CI and currently reports many style
 and modernization issues. Do not auto-fix the whole project together with a
@@ -31,6 +73,7 @@ small functional change: it will produce a large unrelated diff.
 | [`tests/test_core.py`](../tests/test_core.py) | Disabled-folder extension filtering, the missing-token error, color/JSON helpers, `PaginationView` edge cases. |
 | [`tests/test_character_routes.py`](../tests/test_character_routes.py) | Agent lookup by key and aliases, case/whitespace normalization, full `Back` history, Fire routes matching real embed keys, autocomplete ranking and the 25-result limit, the `agent` parameter with its autocomplete callback, Alice's paginated sections and tabs. |
 | [`tests/test_status_heartbeat.py`](../tests/test_status_heartbeat.py) | Bot-side heartbeat payload, reporter settings, delivery with retry/backoff, env float parsing. |
+| [`tests/test_version_and_logging.py`](../tests/test_version_and_logging.py) | Version order (`BOT_VERSION` → Git → `config.json`), Git queried once, a real process without Git, `standard.log` rotation. |
 | [`tests/test_status_service.py`](../tests/test_status_service.py) | State evaluation, payload validation, settings, the state store, the webhook publisher, the status embed, the monitor loop, and the HTTP endpoints. |
 
 Not covered yet:
@@ -46,26 +89,98 @@ Not covered yet:
 
 ## CI
 
-The [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) workflow:
+Branch flow: task branch → PR into `dev` → PR from `dev` into `main`.
 
-- runs on pushes to `main` and `dev`;
-- runs on pull requests to `main` and `dev`;
-- uses Ubuntu and Python 3.11;
-- installs the runtime requirements, `pytest`, and `ruff`;
-- runs compileall, the critical Ruff subset, and pytest.
+The [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) workflow runs:
 
-`pytest` and `ruff` are not pinned in a separate dev requirements or lock
-file, so CI installs their latest versions.
+- on a push to any branch except `dev` and `main` (pushes to those run it
+  through the publish workflow, see [Image publishing](#image-publishing); tag
+  pushes are handled by the release workflow);
+- on pull requests into `main` and `dev`;
+- manually: **Actions → CI → Run workflow**, then pick a branch;
+- from the publish and release workflows (`workflow_call`).
 
-Release workflow:
+It has four independent jobs on Ubuntu (Python jobs use 3.11). Each one shows
+up as a separate check on a PR:
 
-- runs for `v*.*.*` tags;
-- uses Python 3.11;
-- runs pytest;
-- creates a draft GitHub Release with automatic release notes.
+| Job | Steps |
+|---|---|
+| `Dependencies (install, consistency, lock files)` | hash-checked install of both lock files, `pip check`, lock files up to date |
+| `Lint (syntax + Ruff)` | `compileall`, critical Ruff subset (`E9,F63,F7,F82`) |
+| `Tests (pytest, Python 3.11)` | `pytest -ra` without `.env` or any secret |
+| `Docker image (build + smoke test + compose, not pushed)` | image build, `scripts/docker-smoke-test.sh`, `docker compose config`, status service healthcheck |
 
-It does not run compileall/Ruff and does not verify that the tag matches
-`config.json → bot.version`.
+The workflow token is read-only (`contents: read`), checkout does not keep
+credentials, and all actions are pinned to full commit SHAs with the version
+in a comment. A newer PR run cancels the previous run of the same PR; pushes
+are never cancelled.
+
+The tests need no Discord token, no network beyond `127.0.0.1`, and no
+database. Without `.env`, `Config` falls back to its defaults.
+
+### Image publishing
+
+[`.github/workflows/docker-publish.yml`](../.github/workflows/docker-publish.yml)
+("CI and Docker publish") runs on every push to `dev` or `main`, including PR
+merges. It first runs the whole CI workflow above as a reusable workflow; the
+publish job `needs` it, so a failed or cancelled CI job means no image. The
+image is built only once, in the CI `docker` job; after its checks pass, that
+job hands the tested image to the publish job as an artifact of the same run,
+and the publish job loads it (no rebuild) and pushes
+`ghcr.io/indimops/miyabi-bot`:
+
+| Branch | Tags |
+|---|---|
+| `dev` | `beta`, `dev`, `sha-<12-character SHA>` |
+| `main` | `stable`, `latest`, `sha-<12-character SHA>` |
+
+Only the publish job has `packages: write`; the CI jobs keep `contents: read`.
+Pull requests run `ci.yml` directly and never reach the publish workflow.
+Details: [Docker → Registry](docker.md#registry-ghcr).
+
+## Releases
+
+The [`.github/workflows/release.yml`](../.github/workflows/release.yml)
+workflow runs when a `v*.*.*` tag is pushed:
+
+1. `Verify tag`: the tag must equal `v` + `config.json → bot.version`, and the
+   tagged commit must be on `main`;
+2. `CI checks`: the full CI workflow above;
+3. `Tag release image in GHCR`: after both pass, adds the `vX.Y.Z` tag to the
+   already published `sha-<12-character SHA>` image of the tagged commit,
+   without rebuilding (see [Docker → Registry](docker.md#registry-ghcr)). If
+   that image does not appear within 20 minutes, the release fails. Only this
+   job has `packages: write`;
+4. `Create draft GitHub Release`: only if all of the above pass, using the
+   `gh` CLI with generated notes. Only this job can write to the repository
+   (`contents: write`).
+
+Publishing the draft stays a manual step on GitHub.
+
+Existing tags (`v0.1.0`, `v0.1.1`) are not changed or re-checked. They
+predate this check, and `config.json` still says `0.0.1`. For the next
+release:
+
+1. In a task branch, set `bot.version` (for example to `0.2.0`) and
+   `bot.last_update`; PR into `dev`.
+2. PR `dev` into `main` once CI is green, and merge.
+3. Wait until the "CI and Docker publish" run for the merge commit on `main`
+   has succeeded (it publishes the `sha-` image the release tags), then tag
+   that commit and push the tag:
+
+   ```powershell
+   git switch main
+   git pull
+   git tag -a v0.2.0 -m "v0.2.0"
+   git push origin v0.2.0
+   ```
+
+4. Review the draft release on GitHub and publish it.
+
+If the tag and `bot.version` differ, the workflow stops with an error that
+names both values. Delete the unpublished tag (`git push --delete origin
+vX.Y.Z` and `git tag -d vX.Y.Z`), fix the version through a PR, and tag
+again.
 
 ## Logs
 
@@ -73,9 +188,21 @@ It does not run compileall/Ruff and does not verify that the tag matches
 |---|---|---|
 | Loguru console | `INFO` or `DEBUG` | `DEBUG` is enabled via `.env`. |
 | `logs/bot.log` | `DEBUG` | Rotation at 10 MB, retention 10 days, old logs compressed to ZIP. |
-| `logs/standard.log` | `DEBUG` | Standard Python logging, no rotation. |
+| `logs/standard.log` | `DEBUG` | Standard Python logging (discord.py, aiohttp), rotation at 10 MB, 10 backups. |
+| `logs/status_service.log` | `DEBUG` | Written only by `status_service`; rotation at 10 MB, retention 10 days. |
 
-The `logs/` directory is ignored by Git.
+The `logs/` directory is ignored by Git. In Docker, see
+[Docker → Logs](docker.md#logs).
+
+Known issue (Windows, local only): log paths are relative to the working
+directory, and importing `utils.logger` in tests opens the same
+`logs/bot.log` and `logs/standard.log` as a bot started from the repository
+root. If both run at once and a file reaches 10 MB, Windows refuses to rename
+the open file: rotation fails and `--- Logging error ---` messages appear on
+stderr while both processes run; records written during failed rotation
+attempts may be missing from the file. The processes keep running. Docker and
+CI are not affected (one process per container and per runner). Until this is
+fixed separately, stop the local bot before running the tests.
 
 For initial diagnostics, look in `logs/bot.log` for:
 
@@ -165,7 +292,6 @@ root and run `python bot.py` again.
 3. Protect dev commands with owner/permission checks regardless of `DEBUG`.
 4. Make `/help` the single source of command metadata.
 5. Fetch command IDs automatically instead of a manual JSON list.
-6. Pin dev dependencies (`pytest`, `ruff`) in a separate requirements file.
-7. Add tests for `NavView`, help callbacks, and all character branches.
-8. Replace temporary Discord attachment URLs with stable assets.
-9. Define a deployment process and a version check before release.
+6. Add tests for `NavView`, help callbacks, and all character branches.
+7. Replace temporary Discord attachment URLs with stable assets.
+8. Define a deployment process and a version check before release.
