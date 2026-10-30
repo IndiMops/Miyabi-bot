@@ -68,10 +68,10 @@ the application files are present and `.env`, `.git`, and `git` are absent;
 missing-token error; and that `status_service` answers `/health`. It exits
 non-zero on the first failed check.
 
-In CI the `docker` job additionally builds with `docker compose build`,
-starts `status` in a throwaway compose project (`miyabi-ci`, dummy secret)
-with `docker compose up --wait`, and removes that project's containers and
-volumes afterwards.
+In CI the `docker` job builds the image once, smoke-tests it, then starts
+`status` from that same image (`docker compose up --no-build --pull never
+--wait`) in a throwaway compose project (`miyabi-ci`, dummy secret), and
+removes that project's containers and volumes afterwards.
 
 `docker compose down -v` **deletes the volumes**, including the status
 message ID in `status-data`. Without it, the next start posts a new status
@@ -166,41 +166,66 @@ docker buildx imagetools inspect python:3.11-slim-trixie --format '{{json .Manif
 
 ## Registry (GHCR)
 
-Development images are published to GitHub Container Registry:
+Images are published to GitHub Container Registry, all in one package:
 
 ```text
 ghcr.io/indimops/miyabi-bot
 ```
 
 The [`docker-publish.yml`](../.github/workflows/docker-publish.yml) workflow
-runs on every push to `dev` (including PR merges into `dev`), and on nothing
-else: not on pull requests, other branches, or tags. It builds the image with
-`BOT_VERSION=dev-<7-character SHA>` and `VCS_REF=<full SHA>`, then runs the
-same image checks as the CI `docker` job against that exact image:
-`scripts/docker-smoke-test.sh`, `docker compose config`, and the `status`
-service started from it (`--no-build --pull never`) in a throwaway compose
-project with a dummy secret until its healthcheck is `healthy`. Only then does
-it log in with the built-in `GITHUB_TOKEN` (`packages: write`) and push.
+("CI and Docker publish") runs on every push to `dev` or `main` (including PR
+merges), and on nothing else: not on pull requests, other branches, or tags.
+It first runs the full CI (`ci.yml`: dependencies, lint, pytest, Docker
+checks); the publish job starts only if every CI job succeeded.
 
-| Tag | Meaning |
-|---|---|
-| `sha-<12-character SHA>` | The image built from that exact `dev` commit. Never moved; use it to pin a deployment. |
-| `dev` | The latest published `dev` commit. Moves with every push to `dev`. |
+The image is built **once**, in the CI `docker` job, with
+`BOT_VERSION=<config.json bot.version>+<7-character SHA>` and
+`VCS_REF=<full SHA>`. That job runs `scripts/docker-smoke-test.sh`, `docker
+compose config`, and the `status` service started from the same image until
+its healthcheck is `healthy`. Only after these checks pass, and only when
+called by the publish workflow, it saves the image with `docker save` and
+uploads it as an artifact of the run (`miyabi-image-<run ID>-<commit SHA>`,
+kept for 1 day). Pull request runs export nothing.
 
-There is no `latest` tag and no release image yet.
+The publish job does not build. It downloads that artifact from the same run,
+checks the archive's SHA-256, runs `docker load`, and checks that the loaded
+image ID, the `org.opencontainers.image.revision` label and the version label
+match what CI tested. Only then does it log in with the built-in
+`GITHUB_TOKEN` (`packages: write`, publish job only) and push. After pushing,
+it checks that the registry image is the tested image (same config digest, or
+same manifest digest with Docker's containerd image store).
 
-Only one publish runs at a time, and a running publish is never cancelled.
-While it runs, GitHub keeps just the newest waiting run: if several commits
-reach `dev` in quick succession, the intermediate ones are cancelled and get no
-`sha-` image. Before moving `dev`, the workflow checks that its commit is still
-the head of the `dev` branch; if not (for example, a re-run of an older
-commit), it pushes only the `sha-` tag. After pushing, it checks that each tag
-in the registry has the digest of the tested image.
+| Tag | Set by | Meaning |
+|---|---|---|
+| `sha-<12-character SHA>` | push to `dev` or `main` | The image of that exact commit. Never moved or overwritten; use it to pin a deployment. |
+| `beta`, `dev` | push to `dev` | Development environment: the latest published `dev` commit. Both always point to the same image. |
+| `stable`, `latest` | push to `main` | Stable environment: the latest published `main` commit. Both always point to the same image. |
+| `vX.Y.Z` | `vX.Y.Z` Git tag ([release workflow](development.md#releases)) | Official release: the `sha-` image of the tagged `main` commit. Never moved. |
 
-> [!IMPORTANT]
-> A `dev` image is a development snapshot. The workflow does not run pytest,
-> so a published image does not mean the full CI is green (see
-> [Known failures](development.md#known-failures)).
+A `dev` run never touches `stable`/`latest`, and a `main` run never touches
+`beta`/`dev`. Moving tags are re-pointed by digest (`docker buildx imagetools
+create`), so the old image stays available under its `sha-` tag; nothing is
+deleted. If a `sha-` tag already exists, it is never overwritten: it is reused
+only when it is exactly the image this run tested (for example, after
+**Re-run failed jobs** for the publish job). Otherwise the publish fails. A
+full re-run, or the same commit pushed to both `dev` and `main` (a
+fast-forward merge), builds a new image that is not byte-identical, so its
+publish fails with a clear error; use merge commits for `dev` → `main`.
+
+Only one publish per branch runs at a time, and a running publish is never
+cancelled. While it runs, GitHub keeps just the newest waiting publish for that
+branch: if several commits reach a branch in quick succession, the
+intermediate ones are cancelled and get no `sha-` image. Before moving the
+channel tags, the workflow checks that its commit is still the head of the
+branch; if not (for example, a re-run of an older commit), it pushes only the
+`sha-` tag. After pushing, it checks that each tag in the registry has the
+digest of the source image.
+
+The [release workflow](development.md#releases) never builds an image. For a
+`vX.Y.Z` tag it finds `sha-<12-character SHA>` of the tagged commit (waiting
+up to 20 minutes for a running publish), adds `vX.Y.Z` to that manifest by
+digest, and checks that both tags have the same digest. If the `sha-` image is
+missing, or `vX.Y.Z` already points to a different image, the release fails.
 
 Pull an image built from a specific commit:
 
@@ -220,8 +245,8 @@ A future deployment uses the registry image instead of building, by setting
 MIYABI_IMAGE=ghcr.io/indimops/miyabi-bot:sha-<12-character SHA> docker compose up -d --no-build
 ```
 
-Prefer a `sha-` tag (or a digest) over `dev`, so the server runs a known
-commit.
+Prefer a `sha-` or `vX.Y.Z` tag (or a digest) over a moving tag (`beta`,
+`dev`, `stable`, `latest`), so the server runs a known commit.
 
 Publishing is **not** deployment: the workflow only pushes to GHCR. It does
 not connect to the home server and does not start, stop, or update the bot
@@ -229,5 +254,4 @@ there.
 
 ## Not covered yet
 
-Deploying the image to the home server, and release (version-tagged) images,
-are a separate stage.
+Deploying the image to the home server is a separate stage.

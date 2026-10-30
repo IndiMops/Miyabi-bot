@@ -2,13 +2,33 @@ name: CI
 
 on:
   push:
-    # Every working branch. Tag pushes are not matched here; release.yml
-    # runs the same checks for v*.*.* tags through workflow_call.
-    branches: ["**"]
+    # Every working branch except dev and main: pushes to those run this
+    # workflow through docker-publish.yml (workflow_call), which publishes the
+    # image only after all jobs here pass. Tag pushes are not matched here;
+    # release.yml runs the same checks for v*.*.* tags through workflow_call.
+    branches-ignore: ["dev", "main"]
   pull_request:
     branches: ["main", "dev"]
   workflow_dispatch:
   workflow_call:
+    inputs:
+      export-image:
+        description: Upload the tested image as an artifact of this run (docker-publish.yml).
+        type: boolean
+        default: false
+    outputs:
+      image_artifact:
+        description: Name of the artifact with the tested image (empty unless export-image).
+        value: ${{ jobs.docker.outputs.artifact }}
+      image_id:
+        description: Image ID (config digest) of the tested image.
+        value: ${{ jobs.docker.outputs.image_id }}
+      image_archive_sha256:
+        description: SHA-256 of the exported image archive.
+        value: ${{ jobs.docker.outputs.archive_sha256 }}
+      bot_version:
+        description: BOT_VERSION baked into the tested image.
+        value: ${{ jobs.docker.outputs.bot_version }}
 
 permissions:
   contents: read
@@ -117,14 +137,21 @@ jobs:
 
   docker:
     # Independent of the other jobs, so the image is verified even while a
-    # test fails. A release still needs every job in this workflow to pass.
+    # test fails. Publishing and releases still need every job here to pass.
+    # This is the only place the image is built: with export-image, the image
+    # that passed these checks is handed to the publish job as an artifact.
     name: Docker image (build + smoke test + compose, not pushed)
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
       # Throwaway compose project and image tag that exist only on this runner.
       COMPOSE_PROJECT_NAME: miyabi-ci
-      MIYABI_IMAGE: miyabi-bot:compose-ci
+      MIYABI_IMAGE: miyabi-bot:ci
+    outputs:
+      artifact: ${{ steps.export.outputs.artifact }}
+      image_id: ${{ steps.build.outputs.image_id }}
+      archive_sha256: ${{ steps.export.outputs.archive_sha256 }}
+      bot_version: ${{ steps.build.outputs.bot_version }}
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -132,16 +159,25 @@ jobs:
           persist-credentials: false
 
       - name: Build image
+        id: build
         run: |
-          version="ci-${GITHUB_SHA::7}"
+          # The version depends only on the commit, not on the branch, so the
+          # same image is valid for dev, main and a release tag.
+          version="$(python3 -c 'import json; print(json.load(open("config.json", encoding="utf-8"))["bot"]["version"])')+${GITHUB_SHA::7}"
           echo "BOT_VERSION=$version" >> "$GITHUB_ENV"
           docker build \
             --build-arg BOT_VERSION="$version" \
             --build-arg VCS_REF="$GITHUB_SHA" \
-            --tag miyabi-bot:ci .
+            --tag "$MIYABI_IMAGE" .
+          image_id="$(docker image inspect --format '{{.Id}}' "$MIYABI_IMAGE")"
+          echo "built $MIYABI_IMAGE: $image_id"
+          {
+            echo "bot_version=$version"
+            echo "image_id=$image_id"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Smoke test image
-        run: bash scripts/docker-smoke-test.sh miyabi-bot:ci "$BOT_VERSION"
+        run: bash scripts/docker-smoke-test.sh "$MIYABI_IMAGE" "$BOT_VERSION"
 
       - name: Create throwaway .env (dummy status secret only)
         run: |
@@ -149,20 +185,55 @@ jobs:
           umask 077
           printf 'STATUS_HEARTBEAT_SECRET=%s\n' "$(openssl rand -hex 24)" > .env
 
-      - name: Validate and build with compose
+      - name: Start status service from the built image and wait for its healthcheck
+        env:
+          EXPECTED_ID: ${{ steps.build.outputs.image_id }}
         run: |
           docker compose config --quiet
-          docker compose build
-
-      - name: Start status service and wait for its healthcheck
-        run: |
-          # --wait returns only when the service's healthcheck reports healthy
-          # and fails if it turns unhealthy or the timeout expires. The bot is
-          # not started: it would need a real Discord token.
-          docker compose up --detach --wait --wait-timeout 120 status
-          health="$(docker inspect --format '{{.State.Health.Status}}' "$(docker compose ps --quiet status)")"
+          # --no-build and --pull never: compose must run the image built and
+          # smoke-tested above, not build or pull another one. --wait returns
+          # only when the healthcheck reports healthy and fails if it turns
+          # unhealthy or the timeout expires. The bot is not started: it would
+          # need a real Discord token.
+          docker compose up --no-build --pull never --detach --wait --wait-timeout 120 status
+          container="$(docker compose ps --quiet status)"
+          image_id="$(docker inspect --format '{{.Image}}' "$container")"
+          [ "$image_id" = "$EXPECTED_ID" ] || { echo "::error::status runs $image_id, expected $EXPECTED_ID"; exit 1; }
+          health="$(docker inspect --format '{{.State.Health.Status}}' "$container")"
           echo "status service health: $health"
           test "$health" = healthy
+
+      # Runs only after every check above has passed (default success()).
+      - name: Export tested image
+        id: export
+        if: inputs.export-image
+        env:
+          EXPECTED_ID: ${{ steps.build.outputs.image_id }}
+        run: |
+          image_id="$(docker image inspect --format '{{.Id}}' "$MIYABI_IMAGE")"
+          [ "$image_id" = "$EXPECTED_ID" ] || { echo "::error::$MIYABI_IMAGE is $image_id, not the tested $EXPECTED_ID"; exit 1; }
+          dir="$RUNNER_TEMP/miyabi-image"
+          mkdir -p "$dir"
+          docker save --output "$dir/image.tar" "$MIYABI_IMAGE"
+          archive_sha256="$(sha256sum "$dir/image.tar" | cut -d ' ' -f 1)"
+          echo "image.tar: $archive_sha256 ($(du -h "$dir/image.tar" | cut -f 1))"
+          {
+            # Tied to this run and commit; only this run can download it by name.
+            echo "artifact=miyabi-image-${GITHUB_RUN_ID}-${GITHUB_SHA}"
+            echo "archive_sha256=$archive_sha256"
+            echo "path=$dir/image.tar"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Upload tested image
+        if: inputs.export-image
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ steps.export.outputs.artifact }}
+          path: ${{ steps.export.outputs.path }}
+          if-no-files-found: error
+          retention-days: 1
+          # A full re-run of the workflow rebuilds and replaces it.
+          overwrite: true
 
       - name: Show status service logs
         if: always()

@@ -93,19 +93,22 @@ Branch flow: task branch → PR into `dev` → PR from `dev` into `main`.
 
 The [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) workflow runs:
 
-- on a push to any branch (tag pushes are handled by the release workflow);
+- on a push to any branch except `dev` and `main` (pushes to those run it
+  through the publish workflow, see [Image publishing](#image-publishing); tag
+  pushes are handled by the release workflow);
 - on pull requests into `main` and `dev`;
 - manually: **Actions → CI → Run workflow**, then pick a branch;
-- from the release workflow (`workflow_call`).
+- from the publish and release workflows (`workflow_call`).
 
-It has three independent jobs on Ubuntu with Python 3.11. Each one shows up as
-a separate check on a PR:
+It has four independent jobs on Ubuntu (Python jobs use 3.11). Each one shows
+up as a separate check on a PR:
 
 | Job | Steps |
 |---|---|
 | `Dependencies (install, consistency, lock files)` | hash-checked install of both lock files, `pip check`, lock files up to date |
 | `Lint (syntax + Ruff)` | `compileall`, critical Ruff subset (`E9,F63,F7,F82`) |
 | `Tests (pytest, Python 3.11)` | `pytest -ra` without `.env` or any secret |
+| `Docker image (build + smoke test + compose, not pushed)` | image build, `scripts/docker-smoke-test.sh`, `docker compose config`, status service healthcheck |
 
 The workflow token is read-only (`contents: read`), checkout does not keep
 credentials, and all actions are pinned to full commit SHAs with the version
@@ -115,27 +118,25 @@ are never cancelled.
 The tests need no Discord token, no network beyond `127.0.0.1`, and no
 database. Without `.env`, `Config` falls back to its defaults.
 
-### Known failures
+### Image publishing
 
-`tests/test_character_routes.py` has two failing tests:
-`test_alice_has_expected_paginated_sections` and
-`test_alice_opens_basic_info_and_keeps_tabs_in_sections`. They expect the
-planned Alice layout (three "Combat mechanics" pages, page titles without a
-subtitle), while `embeds/wiki/characters/agents/alice.py` currently has one
-combat page titled "… — 1/3". This is an unfinished content issue that is
-tracked separately from CI, so the `Tests` job stays red until it is resolved.
-Do not change these tests just to turn CI green.
+[`.github/workflows/docker-publish.yml`](../.github/workflows/docker-publish.yml)
+("CI and Docker publish") runs on every push to `dev` or `main`, including PR
+merges. It first runs the whole CI workflow above as a reusable workflow; the
+publish job `needs` it, so a failed or cancelled CI job means no image. The
+image is built only once, in the CI `docker` job; after its checks pass, that
+job hands the tested image to the publish job as an artifact of the same run,
+and the publish job loads it (no rebuild) and pushes
+`ghcr.io/indimops/miyabi-bot`:
 
-### Dev image publishing
+| Branch | Tags |
+|---|---|
+| `dev` | `beta`, `dev`, `sha-<12-character SHA>` |
+| `main` | `stable`, `latest`, `sha-<12-character SHA>` |
 
-A separate workflow,
-[`.github/workflows/docker-publish.yml`](../.github/workflows/docker-publish.yml),
-runs on every push to `dev` only. It builds the image, runs the same image
-checks as the CI `docker` job, and only then pushes
-`ghcr.io/indimops/miyabi-bot` with the tags `dev` and `sha-<12-character SHA>`.
-Its token has `contents: read` and `packages: write`. It does not run pytest,
-so a published image is not a sign of green CI. Details:
-[Docker → Registry](docker.md#registry-ghcr).
+Only the publish job has `packages: write`; the CI jobs keep `contents: read`.
+Pull requests run `ci.yml` directly and never reach the publish workflow.
+Details: [Docker → Registry](docker.md#registry-ghcr).
 
 ## Releases
 
@@ -145,8 +146,13 @@ workflow runs when a `v*.*.*` tag is pushed:
 1. `Verify tag`: the tag must equal `v` + `config.json → bot.version`, and the
    tagged commit must be on `main`;
 2. `CI checks`: the full CI workflow above;
-3. `Create draft GitHub Release`: only if both pass, using the `gh` CLI with
-   generated notes. Only this job can write to the repository
+3. `Tag release image in GHCR`: after both pass, adds the `vX.Y.Z` tag to the
+   already published `sha-<12-character SHA>` image of the tagged commit,
+   without rebuilding (see [Docker → Registry](docker.md#registry-ghcr)). If
+   that image does not appear within 20 minutes, the release fails. Only this
+   job has `packages: write`;
+4. `Create draft GitHub Release`: only if all of the above pass, using the
+   `gh` CLI with generated notes. Only this job can write to the repository
    (`contents: write`).
 
 Publishing the draft stays a manual step on GitHub.
@@ -158,7 +164,9 @@ release:
 1. In a task branch, set `bot.version` (for example to `0.2.0`) and
    `bot.last_update`; PR into `dev`.
 2. PR `dev` into `main` once CI is green, and merge.
-3. Tag the merge commit on `main`, then push the tag:
+3. Wait until the "CI and Docker publish" run for the merge commit on `main`
+   has succeeded (it publishes the `sha-` image the release tags), then tag
+   that commit and push the tag:
 
    ```powershell
    git switch main
@@ -284,7 +292,6 @@ root and run `python bot.py` again.
 3. Protect dev commands with owner/permission checks regardless of `DEBUG`.
 4. Make `/help` the single source of command metadata.
 5. Fetch command IDs automatically instead of a manual JSON list.
-6. Resolve the two known Alice test failures (see [Known failures](#known-failures)).
-7. Add tests for `NavView`, help callbacks, and all character branches.
-8. Replace temporary Discord attachment URLs with stable assets.
-9. Define a deployment process and a version check before release.
+6. Add tests for `NavView`, help callbacks, and all character branches.
+7. Replace temporary Discord attachment URLs with stable assets.
+8. Define a deployment process and a version check before release.

@@ -19,6 +19,8 @@ jobs:
     timeout-minutes: 5
     permissions:
       contents: read # checkout with history to inspect main
+    outputs:
+      commit: ${{ steps.commit.outputs.sha }}
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -52,15 +54,106 @@ jobs:
             exit 1
           fi
 
+      - name: Resolve tagged commit
+        id: commit
+        run: echo "sha=$(git rev-parse "$GITHUB_SHA^{commit}")" >> "$GITHUB_OUTPUT"
+
   checks:
     name: CI checks
     uses: ./.github/workflows/ci.yml
     permissions:
       contents: read # checkout only
 
+  image:
+    # Adds the version tag to the image already published for the tagged main
+    # commit (docker-publish.yml). Never builds: if that image is missing, the
+    # release fails instead of publishing a different build.
+    name: Tag release image in GHCR
+    needs: [verify-tag, checks]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      packages: write # add a tag to ghcr.io with GITHUB_TOKEN
+    env:
+      # GHCR paths must be lowercase.
+      IMAGE_NAME: ghcr.io/indimops/miyabi-bot
+      COMMIT: ${{ needs.verify-tag.outputs.commit }}
+    steps:
+      - name: Log in to GHCR
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: printf '%s' "$GHCR_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+
+      - name: Find the image of the tagged commit
+        id: source
+        run: |
+          source_image="$IMAGE_NAME:sha-${COMMIT::12}"
+          # The main publish for this commit may still be running when the tag
+          # is pushed right after the merge, so wait for it for a while.
+          deadline=$((SECONDS + 20 * 60))
+          while :; do
+            set +e
+            digest="$(docker buildx imagetools inspect "$source_image" --format '{{.Manifest.Digest}}' 2>&1)"
+            code=$?
+            set -e
+            [ "$code" -eq 0 ] && break
+            if ! grep -qi 'not found' <<<"$digest"; then
+              echo "::error::Could not read $source_image: $digest"
+              exit 1
+            fi
+            if [ "$SECONDS" -ge "$deadline" ]; then
+              echo "::error::$source_image does not exist. The release image is never rebuilt: make sure the 'CI and Docker publish' run for $COMMIT on main succeeded, then re-run this workflow."
+              exit 1
+            fi
+            echo "$source_image not found yet; waiting for the main publish..."
+            sleep 30
+          done
+          echo "$source_image: $digest"
+          echo "image=$source_image" >> "$GITHUB_OUTPUT"
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+
+      - name: Add version tag (never move an existing one)
+        env:
+          DIGEST: ${{ steps.source.outputs.digest }}
+        run: |
+          target="$IMAGE_NAME:$GITHUB_REF_NAME"
+          set +e
+          existing="$(docker buildx imagetools inspect "$target" --format '{{.Manifest.Digest}}' 2>&1)"
+          code=$?
+          set -e
+          if [ "$code" -eq 0 ]; then
+            if [ "$existing" = "$DIGEST" ]; then
+              echo "::notice::$target already points to $DIGEST."
+              exit 0
+            fi
+            echo "::error::$target already exists and points to $existing, not $DIGEST. Version tags are immutable."
+            exit 1
+          elif ! grep -qi 'not found' <<<"$existing"; then
+            echo "::error::Could not check whether $target exists: $existing"
+            exit 1
+          fi
+          # Same manifest by digest: no rebuild and no layer upload.
+          # --prefer-index=false keeps the manifest, so the digest is unchanged.
+          docker buildx imagetools create --prefer-index=false --tag "$target" "$IMAGE_NAME@$DIGEST"
+
+      - name: Verify version tag points to the source image
+        env:
+          SOURCE_IMAGE: ${{ steps.source.outputs.image }}
+          DIGEST: ${{ steps.source.outputs.digest }}
+        run: |
+          for tag in "$SOURCE_IMAGE" "$IMAGE_NAME:$GITHUB_REF_NAME"; do
+            remote_digest="$(docker buildx imagetools inspect "$tag" --format '{{.Manifest.Digest}}')"
+            echo "$tag: $remote_digest"
+            [ "$remote_digest" = "$DIGEST" ] || { echo "::error::$tag points to $remote_digest, not $DIGEST"; exit 1; }
+          done
+
+      - name: Remove registry login
+        if: always()
+        run: docker logout ghcr.io || true
+
   draft-release:
     name: Create draft GitHub Release
-    needs: [verify-tag, checks]
+    needs: [verify-tag, checks, image]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
