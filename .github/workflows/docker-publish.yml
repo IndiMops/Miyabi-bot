@@ -64,9 +64,9 @@ jobs:
       - name: Compute tags
         run: |
           # The channel tags are fixed per branch: a dev run can never move
-          # stable/latest, and a main run can never move beta/dev.
+          # stable/latest, and a main run can never move beta.
           case "$BRANCH" in
-            dev) channel_tags="beta dev" ;;
+            dev) channel_tags="beta" ;;
             main) channel_tags="stable latest" ;;
             *) echo "::error::No image channel for branch $BRANCH"; exit 1 ;;
           esac

@@ -198,13 +198,15 @@ same manifest digest with Docker's containerd image store).
 | Tag | Set by | Meaning |
 |---|---|---|
 | `sha-<12-character SHA>` | push to `dev` or `main` | The image of that exact commit. Never moved or overwritten; use it to pin a deployment. |
-| `beta`, `dev` | push to `dev` | Development environment: the latest published `dev` commit. Both always point to the same image. |
+| `beta` | push to `dev` | Development environment: the latest published `dev` commit. |
 | `stable`, `latest` | push to `main` | Stable environment: the latest published `main` commit. Both always point to the same image. |
 | `vX.Y.Z` | `vX.Y.Z` Git tag ([release workflow](development.md#releases)) | Official release: the `sha-` image of the tagged `main` commit. Never moved. |
 
 A `dev` run never touches `stable`/`latest`, and a `main` run never touches
-`beta`/`dev`. Moving tags are re-pointed by digest (`docker buildx imagetools
-create`), so the old image stays available under its `sha-` tag; nothing is
+`beta`. Pushes to the `dev` branch used to also move a `dev` image tag; the
+workflow no longer sets it, so a `dev` image tag that may still exist in GHCR
+is stale (it points to an old commit) and should not be used. Moving tags are
+re-pointed by digest (`docker buildx imagetools create`), so the old image stays available under its `sha-` tag; nothing is
 deleted. If a `sha-` tag already exists, it is never overwritten: it is reused
 only when it is exactly the image this run tested (for example, after
 **Re-run failed jobs** for the publish job). Otherwise the publish fails. A
@@ -246,7 +248,7 @@ MIYABI_IMAGE=ghcr.io/indimops/miyabi-bot:sha-<12-character SHA> docker compose u
 ```
 
 Prefer a `sha-` or `vX.Y.Z` tag (or a digest) over a moving tag (`beta`,
-`dev`, `stable`, `latest`), so the server runs a known commit.
+`stable`, `latest`), so the server runs a known commit.
 
 Publishing is **not** deployment: the workflow only pushes to GHCR. It does
 not connect to the home server and does not start, stop, or update the bot

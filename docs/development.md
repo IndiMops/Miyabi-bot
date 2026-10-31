@@ -131,7 +131,7 @@ and the publish job loads it (no rebuild) and pushes
 
 | Branch | Tags |
 |---|---|
-| `dev` | `beta`, `dev`, `sha-<12-character SHA>` |
+| `dev` | `beta`, `sha-<12-character SHA>` |
 | `main` | `stable`, `latest`, `sha-<12-character SHA>` |
 
 Only the publish job has `packages: write`; the CI jobs keep `contents: read`.
