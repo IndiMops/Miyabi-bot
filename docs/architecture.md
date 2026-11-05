@@ -64,6 +64,18 @@ If any cog raises `ExtensionError`, the loader logs the traceback and re-raises
 the error. As a result the whole startup stops — the bot does not keep running
 with a partial set of modules.
 
+## Error handling
+
+`cogs/core/errors.py` installs a global `CommandTree.on_error` handler for
+all slash commands. Commands do not wrap their body in `try/except`: an
+uncaught exception reaches the handler, which logs it (with a traceback for
+unexpected errors, a single line for expected ones such as cooldowns or
+failed checks) and sends the user an ephemeral message in Ukrainian. It
+replies through `followup` when the interaction was already answered.
+
+Errors inside UI components (select menus, buttons) do not go through the
+tree handler; they are handled by the view's own `on_error`.
+
 Every 30 seconds the presence status alternates between:
 
 - `/help | dev-<short Git hash>`;

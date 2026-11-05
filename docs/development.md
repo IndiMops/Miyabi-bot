@@ -71,6 +71,7 @@ small functional change: it will produce a large unrelated diff.
 | File | What it checks |
 |---|---|
 | [`tests/test_core.py`](../tests/test_core.py) | Disabled-folder extension filtering, the missing-token error, color/JSON helpers, `PaginationView` edge cases. |
+| [`tests/test_error_handler.py`](../tests/test_error_handler.py) | User messages per error type, reply vs. followup, swallowed HTTP errors, installing and restoring the global `tree.on_error`. |
 | [`tests/test_character_routes.py`](../tests/test_character_routes.py) | Agent lookup by key and aliases, case/whitespace normalization, full `Back` history, Fire routes matching real embed keys, autocomplete ranking and the 25-result limit, the `agent` parameter with its autocomplete callback, Alice's paginated sections and tabs. |
 | [`tests/test_status_heartbeat.py`](../tests/test_status_heartbeat.py) | Bot-side heartbeat payload, reporter settings, delivery with retry/backoff, env float parsing. |
 | [`tests/test_version_and_logging.py`](../tests/test_version_and_logging.py) | Version order (`BOT_VERSION` → Git → `config.json`), Git queried once, a real process without Git, `standard.log` rotation. |
