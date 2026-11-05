@@ -56,7 +56,9 @@ implicit namespace packages for now.
 6. With `DEBUG=False`, the loader skips folders listed in
    `disabled_cogs_folder`.
 7. Each module is loaded as an extension through its `async setup(bot)`.
-8. `tree.sync()` globally syncs all loaded slash commands.
+8. `register_commands()` globally syncs all loaded slash commands
+   (`SYNC_COMMANDS=False`: only fetches the existing ones) and stores their IDs
+   in the command registry (`utils/commands.py`) for `</name:ID>` mentions.
 9. The 30-second presence status loop starts.
 10. Once ready, the `on_ready` event writes a message to the log.
 

@@ -16,6 +16,7 @@ any change.
 |---|---:|---|---|
 | `DISCORD_BOT_TOKEN` | yes | none | Secret Discord Bot token. Without it `Config.require_token()` aborts startup with an error. |
 | `DEBUG` | no | `False` | Console log level and control over loading disabled cog folders. |
+| `SYNC_COMMANDS` | no | `True` | Sync slash commands with Discord on startup. With `False` the bot only fetches the existing registrations to learn command IDs; new or changed commands do not appear until a start with `True`. |
 | `BOT_VERSION` | no | empty | Version shown in the presence status. Set by the Docker image build; locally the Git revision (`dev-<hash>`) or `bot.version` is used. See [Docker → Version](docker.md#version). |
 | `STATUS_HEARTBEAT_URL`, `STATUS_HEARTBEAT_SECRET`, and other `STATUS_*` | no | disabled | Heartbeat to the status service. See [Status monitoring](status-monitoring.md). |
 
@@ -23,6 +24,8 @@ A template without secrets is [`.env.example`](../.env.example).
 
 `DEBUG` is true only when the value equals `true`, case-insensitively. The
 values `1`, `yes`, or `on` mean `False` in the current implementation.
+
+`SYNC_COMMANDS` is parsed the same way: only `true` enables it.
 
 With `DEBUG=False`, the folders in `bot.disabled_cogs_folder` are skipped.
 With `DEBUG=True` this list is ignored, so dev modules are loaded too.
@@ -81,7 +84,11 @@ commands:
 3. old mentions in `/help` and other embeds may be wrong;
 4. the values in `config.json` must be updated manually.
 
-The current code does not write the sync result back to the JSON.
+The bot also keeps the IDs it gets from Discord on startup in memory
+(`utils/commands.py`): `get_command("help").mention()` returns `</help:ID>`, or
+plain `/help` text with a warning in the log when the command is not
+registered. New code should use it instead of `bot.commands`; the JSON list
+remains only until `/help` is migrated to the registry.
 
 ## Important properties
 
