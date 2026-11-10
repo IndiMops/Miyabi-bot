@@ -54,16 +54,3 @@ class Config:
                 "DISCORD_BOT_TOKEN is not set. Add it to the environment or .env file."
             )
         return cls.DISCORD_BOT_TOKEN
-
-    @classmethod
-    def get_command_id_by_name(cls, name: str) -> int | None:
-        """
-        Return a command ID from the hand-maintained `config.json → bot.commands` list, or None.
-
-        Legacy: new code should use `utils.commands.get_command(name)` instead.
-        """
-        commands = cls.PUBLIC.bot.get("commands", [])
-        for command in commands:
-            if command["name"] == name:
-                return command["id"]
-        return None
