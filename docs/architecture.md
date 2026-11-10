@@ -132,9 +132,10 @@ helper inside `cogs/` as a separate `.py` file unless it is a valid Discord
 extension: the loader will try to load every file whose name does not start
 with `__`.
 
-After the first sync, add the ID to `config.json` only if the command needs to
-be mentioned in an embed as `</example:ID>`. The entry is not required for the
-registration itself.
+To mention the command in an embed as `</example:ID>`, use
+`get_command("example").mention()` from `utils/commands.py` when the embed is
+built; to list it in `/help`, add a `CommandDoc` to
+`embeds/information/help.py` and put it into a category.
 
 ## Navigation embed contract
 

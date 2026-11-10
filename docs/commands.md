@@ -12,7 +12,7 @@ These modules are loaded with `DEBUG=False`.
 | Command | Parameters | Response | Current state |
 |---|---|---|---|
 | `/info` | none | Ephemeral embed | Shows the name, version, update time, developer, support server, and GitHub. |
-| `/help` | `command?`, `category?` | Ephemeral embed/menu | Main help. Detailed content exists only for `help`, `info`, and the `information` category so far. |
+| `/help` | `command?`, `category?` | Ephemeral embed/menu | Main help: overview, the `information` and `wiki` categories, detailed pages for `help`, `info`, and `characters`. |
 | `/characters` | `agent?` | Ephemeral embed/menu | Interactive reference with a menu or a direct jump to an agent via autocomplete. |
 
 ### `/help`
@@ -23,6 +23,7 @@ Usage:
 /help
 /help command:info
 /help category:information
+/help category:wiki
 ```
 
 - without parameters it shows a category select menu;
@@ -30,18 +31,16 @@ Usage:
 - `category` opens the category embed;
 - if both parameters are given, `command` takes precedence.
 
-Autocomplete for `command` fetches all live slash commands from Discord, but
-detailed embeds are implemented only for `help` and `info`. Because of this,
-autocomplete may suggest, for example, `characters`, after which help replies
-that the command was not found.
+Autocomplete for `command` and `category` is built from the help content
+itself, without requests to Discord, so it only suggests commands and
+categories that have a help page.
 
-The list of help commands is duplicated in several places:
-
-- `cogs/information/help.py`;
-- `embeds/information/help.py`;
-- `config.json` for command IDs.
-
-When adding a new command, these places easily get out of sync.
+All help content lives in one place, `embeds/information/help.py`:
+`COMMAND_DOCS` (description, usage, examples per command) and
+`HELP_CATEGORIES` (which commands belong to which category). Usage and example
+texts use `{name}` placeholders, which are replaced with clickable command
+mentions when the embed is built. To document a new command, add a
+`CommandDoc` and put its name into a category.
 
 ### `/characters`
 
@@ -113,8 +112,7 @@ they are loaded, any user who can see the bot can invoke them.
 
 - The ice, electric, and ether branches have no characters yet.
 - The fire agents are demo placeholders, not game data.
-- `/help` does not describe `/characters` or the dev commands.
-- Command IDs are hardcoded for a specific Discord Application.
+- `/help` does not describe the dev commands.
 - Some images use signed Discord attachment URLs, which can expire.
 - Custom emoji depend on the availability of specific Discord emoji.
 - Alice currently has only a short introductory embed without stats, skills,

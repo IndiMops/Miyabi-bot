@@ -47,7 +47,7 @@ With `DEBUG=True` this list is ignored, so dev modules are loaded too.
 | `color.default` | `#RRGGBB` | Main embed color. |
 | `color.error` | `#RRGGBB` | Error color; barely used right now. |
 | `color.info` | `#RRGGBB` | Info color; barely used right now. |
-| `color.warn` | `#RRGGBB` | Warning embeds, e.g. "command not found". |
+| `color.warn` | `#RRGGBB` | Placeholder embeds in the `/characters` tree (e.g. elements without agents yet). |
 | `assets.avatar` | URL | Thumbnail/footer icon in responses. |
 | `assets.banner` | URL | Banner in `/info`. |
 | `assets.fallback_avatar` | local path | Reserved, but the current code does not apply a fallback. |
@@ -55,7 +55,6 @@ With `DEBUG=True` this list is ignored, so dev modules are loaded too.
 | `urls.support_server` | URL | Support server link in `/info`. |
 | `urls.github` | URL | Repository link in `/info`. |
 | `disabled_cogs_folder` | list of strings | Names of folders inside `cogs/` that are skipped with `DEBUG=False`. |
-| `commands` | list of `{name, id}` | Discord command IDs for clickable mentions like `</help:ID>`. |
 
 ### `dev`
 
@@ -72,23 +71,22 @@ that.
 
 ## Command IDs
 
-The `bot.commands` array does not register commands. Registration is done by
-`bot.tree.sync()`; the IDs in the JSON are only needed for nice clickable
-mentions inside embeds.
+Clickable mentions like `</help:ID>` need the command's Discord ID. The bot
+gets the IDs from Discord on startup (the result of `tree.sync()`, or a single
+`tree.fetch_commands()` with `SYNC_COMMANDS=False`) and keeps them in memory
+in `utils/commands.py`; nothing is stored in `config.json`.
 
-If you run the code with another Discord Application or re-create the
-commands:
+```python
+from utils.commands import get_command
 
-1. Discord will assign new IDs;
-2. slash commands will keep working;
-3. old mentions in `/help` and other embeds may be wrong;
-4. the values in `config.json` must be updated manually.
+get_command("help").name()     # "help"
+get_command("help").id()       # Discord ID, or None if not registered
+get_command("help").mention()  # "</help:ID>", or plain `/help` text
+```
 
-The bot also keeps the IDs it gets from Discord on startup in memory
-(`utils/commands.py`): `get_command("help").mention()` returns `</help:ID>`, or
-plain `/help` text with a warning in the log when the command is not
-registered. New code should use it instead of `bot.commands`; the JSON list
-remains only until `/help` is migrated to the registry.
+An unknown command falls back to plain text and logs a warning once per name.
+Embeds that contain mentions must therefore be built at response time, not at
+import time, when the registry is still empty.
 
 ## Important properties
 
