@@ -4,6 +4,7 @@ from pathlib import Path
 import discord
 from discord.ext import commands, tasks
 
+from utils.commands import set_commands
 from utils.config import Config
 from utils.logger import logger
 from utils.misc import get_version
@@ -18,7 +19,7 @@ def is_disabled_extension(module: str, disabled_folders: list[str]) -> bool:
 class MiyabiBot(commands.Bot):
     async def setup_hook(self) -> None:
         await load_extensions(self)
-        await self.tree.sync()
+        await register_commands(self)
 
         if not change_status.is_running():
             change_status.start()
@@ -63,6 +64,22 @@ async def change_status():
 @change_status.before_loop
 async def before_change_status() -> None:
     await bot.wait_until_ready()
+
+
+async def register_commands(target_bot: commands.Bot) -> None:
+    """Sync (or fetch) the global slash commands and fill the command registry."""
+    if Config.SYNC_COMMANDS:
+        app_commands_list = await target_bot.tree.sync()
+        logger.info(f"Synced {len(app_commands_list)} slash commands")
+    else:
+        try:
+            app_commands_list = await target_bot.tree.fetch_commands()
+        except discord.HTTPException:
+            logger.exception("Could not fetch slash commands; command mentions fall back to plain text")
+            return
+        logger.info("Slash command sync skipped (SYNC_COMMANDS=false)")
+
+    set_commands(app_commands_list)
 
 
 async def load_extensions(target_bot: commands.Bot) -> None:

@@ -71,6 +71,9 @@ small functional change: it will produce a large unrelated diff.
 | File | What it checks |
 |---|---|
 | [`tests/test_core.py`](../tests/test_core.py) | Disabled-folder extension filtering, the missing-token error, color/JSON helpers, `PaginationView` edge cases. |
+| [`tests/test_command_registry.py`](../tests/test_command_registry.py) | Command registry lookups (`name()`, `id()`, `mention()`), subcommand mentions, the plain-text fallback with a single warning, `register_commands` with `SYNC_COMMANDS` on/off and a failed fetch. |
+| [`tests/test_help.py`](../tests/test_help.py) | Help content consistency (every categorized command is documented, Discord field limits), mention placeholders, overview/category/command embeds, autocomplete without Discord requests, the category select. |
+| [`tests/test_error_handler.py`](../tests/test_error_handler.py) | User messages per error type, reply vs. followup, swallowed HTTP errors, installing and restoring the global `tree.on_error`. |
 | [`tests/test_character_routes.py`](../tests/test_character_routes.py) | Agent lookup by key and aliases, case/whitespace normalization, full `Back` history, Fire routes matching real embed keys, autocomplete ranking and the 25-result limit, the `agent` parameter with its autocomplete callback, Alice's paginated sections and tabs. |
 | [`tests/test_status_heartbeat.py`](../tests/test_status_heartbeat.py) | Bot-side heartbeat payload, reporter settings, delivery with retry/backoff, env float parsing. |
 | [`tests/test_version_and_logging.py`](../tests/test_version_and_logging.py) | Version order (`BOT_VERSION` → Git → `config.json`), Git queried once, a real process without Git, `standard.log` rotation. |
@@ -290,8 +293,6 @@ root and run `python bot.py` again.
 1. Replace the 35 fire placeholders with real game data.
 2. Fill in the ice, electric, and ether branches.
 3. Protect dev commands with owner/permission checks regardless of `DEBUG`.
-4. Make `/help` the single source of command metadata.
-5. Fetch command IDs automatically instead of a manual JSON list.
-6. Add tests for `NavView`, help callbacks, and all character branches.
-7. Replace temporary Discord attachment URLs with stable assets.
-8. Define a deployment process and a version check before release.
+4. Add tests for `NavView` and all character branches.
+5. Replace temporary Discord attachment URLs with stable assets.
+6. Define a deployment process and a version check before release.

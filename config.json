@@ -30,32 +30,6 @@
         },
         "disabled_cogs_folder": [
             "dev"
-        ],
-        "commands": [
-            {
-                "name": "ping",
-                "id": 1398031179495506121
-            },
-            {
-                "name": "pagination_test",
-                "id": 1399181313457651723
-            },
-            {
-                "name": "info",
-                "id": 1413168761720016906
-            },
-            {
-                "name": "help",
-                "id": 1417949694104961208
-            },
-            {
-                "name": "deep_menu",
-                "id": 1422193141578203332
-            },
-            {
-                "name": "characters",
-                "id": 1536774376991629382
-            }
         ]
     },
     "dev": {

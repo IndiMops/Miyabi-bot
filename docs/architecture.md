@@ -56,13 +56,27 @@ implicit namespace packages for now.
 6. With `DEBUG=False`, the loader skips folders listed in
    `disabled_cogs_folder`.
 7. Each module is loaded as an extension through its `async setup(bot)`.
-8. `tree.sync()` globally syncs all loaded slash commands.
+8. `register_commands()` globally syncs all loaded slash commands
+   (`SYNC_COMMANDS=False`: only fetches the existing ones) and stores their IDs
+   in the command registry (`utils/commands.py`) for `</name:ID>` mentions.
 9. The 30-second presence status loop starts.
 10. Once ready, the `on_ready` event writes a message to the log.
 
 If any cog raises `ExtensionError`, the loader logs the traceback and re-raises
 the error. As a result the whole startup stops — the bot does not keep running
 with a partial set of modules.
+
+## Error handling
+
+`cogs/core/errors.py` installs a global `CommandTree.on_error` handler for
+all slash commands. Commands do not wrap their body in `try/except`: an
+uncaught exception reaches the handler, which logs it (with a traceback for
+unexpected errors, a single line for expected ones such as cooldowns or
+failed checks) and sends the user an ephemeral message in Ukrainian. It
+replies through `followup` when the interaction was already answered.
+
+Errors inside UI components (select menus, buttons) do not go through the
+tree handler; they are handled by the view's own `on_error`.
 
 Every 30 seconds the presence status alternates between:
 
@@ -118,9 +132,10 @@ helper inside `cogs/` as a separate `.py` file unless it is a valid Discord
 extension: the loader will try to load every file whose name does not start
 with `__`.
 
-After the first sync, add the ID to `config.json` only if the command needs to
-be mentioned in an embed as `</example:ID>`. The entry is not required for the
-registration itself.
+To mention the command in an embed as `</example:ID>`, use
+`get_command("example").mention()` from `utils/commands.py` when the embed is
+built; to list it in `/help`, add a `CommandDoc` to
+`embeds/information/help.py` and put it into a category.
 
 ## Navigation embed contract
 

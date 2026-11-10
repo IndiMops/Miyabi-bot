@@ -92,12 +92,3 @@ def get_version(default_version: str) -> str:
     if revision:
         return f"dev-{revision}"
     return default_version
-    
-    
-async def fetch_slash_commands(bot):
-    try:
-        commands = await bot.tree.fetch_commands()
-        return [{"name": cmd.name, "id": cmd.id} for cmd in commands]
-    except Exception as e:
-        logger.error(f"Failed to fetch slash commands: {e}")
-        return []
