@@ -44,10 +44,12 @@ With `DEBUG=True` this list is ignored, so dev modules are loaded too.
 | `prefix` | string | Passed to `commands.Bot`. There are no prefix commands right now, so the field is effectively unused. |
 | `version` | string | Fallback version for the presence status if the Git hash cannot be obtained; also shown in `/info`. |
 | `last_update` | Unix timestamp in seconds | Relative update time in `/info`. |
+| `nav_menu_timeout` | number, seconds | Timeout of select menus and pagination (`TimeoutView`), counted from the last click. After it the components are disabled. Keep it below 900 (15 minutes): that is how long Discord keeps the interaction token used to disable them. |
 | `color.default` | `#RRGGBB` | Main embed color. |
 | `color.error` | `#RRGGBB` | Error color; barely used right now. |
 | `color.info` | `#RRGGBB` | Info color; barely used right now. |
 | `color.warn` | `#RRGGBB` | Placeholder embeds in the `/characters` tree (e.g. elements without agents yet). |
+| `color.attribute_colors.*` | `#RRGGBB` | Per-element colors (`physical`, `fire`, `ice`, `electric`, `ether`). Reserved: the current code does not read them yet. |
 | `assets.avatar` | URL | Thumbnail/footer icon in responses. |
 | `assets.banner` | URL | Banner in `/info`. |
 | `assets.fallback_avatar` | local path | Reserved, but the current code does not apply a fallback. |

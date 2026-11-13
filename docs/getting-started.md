@@ -107,7 +107,8 @@ On a successful start the bot:
 
 1. reads `.env` and `config.json`;
 2. discovers and loads all Python modules in `cogs/`;
-3. globally syncs slash commands with Discord;
+3. globally syncs slash commands with Discord (or only fetches their IDs with
+   `SYNC_COMMANDS=false`);
 4. starts the presence status updates;
 5. prints `Bot is ready!` to the console.
 

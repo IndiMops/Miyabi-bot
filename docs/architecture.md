@@ -167,9 +167,15 @@ Navigation keeps its history in the view's memory and adds `Back` after the
 first level. If a node has `<Key>_pages`, it switches to
 [`PaginationView`](../views/pagination.py).
 
-Both views time out after 120 seconds by default. After the timeout old
-components may stay visible in Discord but no longer handle clicks. Old views
-are also not restored after a bot restart.
+Both views time out after `bot.nav_menu_timeout` seconds in `config.json`
+(600 by default), counted from the last click. On timeout the view disables
+its components. Ephemeral messages can only be edited through an interaction
+token (valid for 15 minutes), so `TimeoutView` remembers the latest interaction
+it handled (`bind_to_interaction`; every click refreshes it through
+`interaction_check`) and edits the message with `edit_original_response`. If
+the token has already expired, the failure is only logged as a warning and the
+old components stay visible but no longer handle clicks. Old views are also
+not restored after a bot restart.
 
 For nested nodes `NavSelect` shows at most 24 children and adds `Back` as the
 25th option. If there are more children, `<Key>_pages` must contain the
