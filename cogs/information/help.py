@@ -81,7 +81,7 @@ class HelpCommand(commands.Cog):
         view = TimeoutView()
         view.add_item(HelpCategorySelect())
         await interaction.response.send_message(embed=build_main_embed(), view=view, ephemeral=True)
-        view.bind_to_message(await interaction.original_response())
+        view.bind_to_interaction(interaction)
 
 
 async def setup(bot: commands.Bot):
