@@ -73,6 +73,7 @@ small functional change: it will produce a large unrelated diff.
 | [`tests/test_core.py`](../tests/test_core.py) | Disabled-folder extension filtering, the missing-token error, color/JSON helpers, `PaginationView` edge cases. |
 | [`tests/test_command_registry.py`](../tests/test_command_registry.py) | Command registry lookups (`name()`, `id()`, `mention()`), subcommand mentions, the plain-text fallback with a single warning, `register_commands` with `SYNC_COMMANDS` on/off and a failed fetch. |
 | [`tests/test_help.py`](../tests/test_help.py) | Help content consistency (every categorized command is documented, Discord field limits), mention placeholders, overview/category/command embeds, autocomplete without Discord requests, the category select. |
+| [`tests/test_views.py`](../tests/test_views.py) | Timeout handling (components disabled through the latest interaction, an expired token only logged), pagination buttons and edge pages, `NavSelect` callbacks (child, `Back`, old view stopped, new view bound), and `page_state` for levels with more than 24 children. |
 | [`tests/test_error_handler.py`](../tests/test_error_handler.py) | User messages per error type, reply vs. followup, swallowed HTTP errors, installing and restoring the global `tree.on_error`. |
 | [`tests/test_character_routes.py`](../tests/test_character_routes.py) | Agent lookup by key and aliases, case/whitespace normalization, full `Back` history, Fire routes matching real embed keys, autocomplete ranking and the 25-result limit, the `agent` parameter with its autocomplete callback, Alice's paginated sections and tabs. |
 | [`tests/test_status_heartbeat.py`](../tests/test_status_heartbeat.py) | Bot-side heartbeat payload, reporter settings, delivery with retry/backoff, env float parsing. |
@@ -82,10 +83,10 @@ small functional change: it will produce a large unrelated diff.
 Not covered yet:
 
 - the real connection to Discord;
-- global command sync;
-- slash command callbacks;
-- `NavView` beyond the Alice navigation level, and the remaining branches of
-  `/characters`;
+- the real global command sync (only `register_commands` with a fake tree is
+  tested);
+- slash command callbacks other than the `/help` category select;
+- the remaining branches of `/characters`;
 - the structure of `config.json`;
 - validity of external URLs and custom emoji;
 - logging behavior.

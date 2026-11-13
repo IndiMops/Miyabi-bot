@@ -105,8 +105,9 @@ they are loaded, any user who can see the bot can invoke them.
   `bot.nav_menu_timeout` value in `config.json`).
 - Pagination supports first, previous, next, and last page.
 - The disabled middle button shows the current `N/M` value.
-- After timeout the buttons may remain on screen, but clicks are no longer
-  handled.
+- After the timeout (counted from the last click) the select menu and buttons
+  become disabled. If the interaction token has expired (15 minutes), they may
+  remain on screen, but clicks are no longer handled.
 
 ## Current limitations
 
