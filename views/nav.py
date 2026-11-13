@@ -123,7 +123,7 @@ class NavSelect(Select):
             self._placeholder,
             self.page_state,
         )
-        view.bind_to_message(interaction.message)
+        view.bind_to_interaction(interaction)
         if self.view is not None:
             self.view.stop()
         await interaction.response.edit_message(embed=embed, view=view)

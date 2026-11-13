@@ -30,7 +30,7 @@ class EmbedTest(commands.Cog):
         await interaction.response.send_message(
             embed=view.initial, view=view, ephemeral=True
         )
-        view.bind_to_message(await interaction.original_response())
+        view.bind_to_interaction(interaction)
 
 
 async def setup(bot: commands.Bot):

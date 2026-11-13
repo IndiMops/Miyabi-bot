@@ -10,26 +10,37 @@ from utils.logger import logger
 
 
 class TimeoutView(View):
-    """A view that disables its components when its configured timeout expires."""
+    """A view that disables its components when its configured timeout expires.
+
+    Ephemeral messages can only be edited through the token of an interaction
+    (valid for 15 minutes), not through `Message.edit`. The view therefore keeps
+    the latest interaction it handled and edits the message through it on timeout.
+    """
 
     def __init__(self, *, timeout: Optional[float] = None) -> None:
         if timeout is None:
             timeout = float(Config.PUBLIC.bot.nav_menu_timeout)
         super().__init__(timeout=timeout)
-        self._message: Optional[discord.InteractionMessage] = None
+        self._interaction: Optional[discord.Interaction] = None
 
-    def bind_to_message(self, message: discord.InteractionMessage) -> None:
-        self._message = message
+    def bind_to_interaction(self, interaction: discord.Interaction) -> None:
+        """Remember the interaction whose message this view is attached to."""
+        self._interaction = interaction
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        # Every click refreshes the token the timeout handler will use.
+        self._interaction = interaction
+        return True
 
     async def on_timeout(self) -> None:
         for item in self.children:
             item.disabled = True
 
-        if self._message is None:
+        if self._interaction is None:
             return
 
         try:
-            await self._message.edit(view=self)
+            await self._interaction.edit_original_response(view=self)
         except discord.HTTPException as error:
             logger.opt(exception=error).warning(
                 "Could not disable navigation after timeout"
