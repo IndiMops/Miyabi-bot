@@ -170,6 +170,12 @@ Navigation keeps its history in the view's memory and adds `Back` after the
 first level. If a node has `<Key>_pages`, it switches to
 [`PaginationView`](../views/pagination.py).
 
+A page can also carry link buttons: build it as a
+[`LinkedEmbed`](../embeds/general.py) with `links=[(label, url), ...]` (at most
+five). Both views show them in the bottom row for the page that is currently
+open (`TimeoutView.show_links`), and they keep working after the timeout,
+because opening a link needs no interaction.
+
 Both views time out after `bot.nav_menu_timeout` seconds in `config.json`
 (600 by default), counted from the last click. On timeout the view disables
 its components. Ephemeral messages can only be edited through an interaction

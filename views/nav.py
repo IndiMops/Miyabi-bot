@@ -209,4 +209,5 @@ def build_navigation_level(
         placeholder,
         page_state=page_state,
     )
+    view.show_links(embed)
     return embed, view

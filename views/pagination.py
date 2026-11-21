@@ -8,6 +8,14 @@ from discord.ui import View
 from utils.config import Config
 from utils.logger import logger
 
+# Link buttons of a page always go to the last action row, below the
+# pagination buttons and the select menu.
+LINK_BUTTON_ROW = 4
+
+
+def _is_link_button(item: discord.ui.Item) -> bool:
+    return isinstance(item, discord.ui.Button) and item.url is not None
+
 
 class TimeoutView(View):
     """A view that disables its components when its configured timeout expires.
@@ -32,8 +40,18 @@ class TimeoutView(View):
         self._interaction = interaction
         return True
 
+    def show_links(self, embed: discord.Embed) -> None:
+        """Show the link buttons of `embed` (its `links` attribute) in the bottom row."""
+        for item in list(self.children):
+            if _is_link_button(item):
+                self.remove_item(item)
+        for label, url in getattr(embed, "links", ()):
+            self.add_item(discord.ui.Button(label=label, url=url, row=LINK_BUTTON_ROW))
+
     async def on_timeout(self) -> None:
         for item in self.children:
+            if _is_link_button(item):
+                continue  # links need no interaction, so they keep working
             item.disabled = True
 
         if self._interaction is None:
@@ -89,6 +107,8 @@ class PaginationView(TimeoutView):
 
         if select_menu is not None:
             self.add_item(select_menu)
+
+        self.show_links(self._embeds[self._current_page])
 
     async def _show_page(self, interaction: discord.Interaction) -> None:
         try:

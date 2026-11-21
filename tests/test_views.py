@@ -13,7 +13,8 @@ from views.nav import (
     NavView,
     build_navigation_level,
 )
-from views.pagination import PaginationView, TimeoutView
+from embeds.general import LinkedEmbed
+from views.pagination import LINK_BUTTON_ROW, PaginationView, TimeoutView
 
 
 class FakeMenu:
@@ -305,6 +306,55 @@ class NavigationLevelTests(unittest.IsolatedAsyncioTestCase):
 
         with self.assertRaises(ValueError):
             build_navigation_level(["Main"], BrokenMenu, "Pick...", {})
+
+
+def link_buttons(view) -> list[discord.ui.Button]:
+    return [
+        item for item in view.children
+        if isinstance(item, discord.ui.Button) and item.url is not None
+    ]
+
+
+class LinkButtonTests(unittest.IsolatedAsyncioTestCase):
+    def linked_page(self) -> LinkedEmbed:
+        return LinkedEmbed(
+            title="Media",
+            links=[("Agent Record", "https://example.com/a"), ("Demo", "https://example.com/b")],
+        )
+
+    async def test_links_follow_the_current_page(self) -> None:
+        view = PaginationView([discord.Embed(title="Plain"), self.linked_page()], timeout=1)
+        self.assertEqual(link_buttons(view), [])
+
+        await view.next.callback(make_interaction())
+        buttons = link_buttons(view)
+        self.assertEqual([button.label for button in buttons], ["Agent Record", "Demo"])
+        self.assertEqual([button.url for button in buttons], ["https://example.com/a", "https://example.com/b"])
+        self.assertTrue(all(button.row == LINK_BUTTON_ROW for button in buttons))
+
+        await view.previous.callback(make_interaction())
+        self.assertEqual(link_buttons(view), [])
+
+    async def test_links_keep_working_after_timeout(self) -> None:
+        view = PaginationView([self.linked_page(), discord.Embed(title="Plain")], timeout=1)
+
+        await view.on_timeout()
+
+        self.assertTrue(all(not button.disabled for button in link_buttons(view)))
+        others = [item for item in view.children if item not in link_buttons(view)]
+        self.assertTrue(others and all(item.disabled for item in others))
+
+    async def test_plain_level_shows_links_of_its_embed(self) -> None:
+        class LinkedMenu(FakeMenu):
+            Other = LinkedEmbed(title="Other", links=[("Site", "https://example.com")])
+
+        _, view = build_navigation_level(["Main", "Other"], LinkedMenu, "Pick...", {})
+
+        self.assertEqual([button.url for button in link_buttons(view)], ["https://example.com"])
+
+    async def test_a_page_holds_at_most_one_row_of_links(self) -> None:
+        with self.assertRaises(ValueError):
+            LinkedEmbed(title="Too many", links=[(str(i), "https://example.com") for i in range(6)])
 
 
 if __name__ == "__main__":

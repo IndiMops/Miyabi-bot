@@ -1,10 +1,26 @@
 from datetime import datetime
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from typing import Any
 
 import discord
 
 from utils.config import Config
+
+MAX_PAGE_LINKS = 5  # one row of Discord link buttons
+
+
+class LinkedEmbed(discord.Embed):
+    """An embed whose page shows link buttons under it.
+
+    `links` is a sequence of `(label, url)` pairs. Navigation and pagination
+    views render them as link buttons in the bottom row (`TimeoutView.show_links`).
+    """
+
+    def __init__(self, *, links: Sequence[tuple[str, str]] = (), **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        if len(links) > MAX_PAGE_LINKS:
+            raise ValueError(f"A page can show at most {MAX_PAGE_LINKS} link buttons")
+        self.links = tuple(links)
 
 
 def add_fields(
