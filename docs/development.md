@@ -76,6 +76,8 @@ small functional change: it will produce a large unrelated diff.
 | [`tests/test_views.py`](../tests/test_views.py) | Timeout handling (components disabled through the latest interaction, an expired token only logged), pagination buttons and edge pages, `NavSelect` callbacks (child, `Back`, old view stopped, new view bound), and `page_state` for levels with more than 24 children. |
 | [`tests/test_error_handler.py`](../tests/test_error_handler.py) | User messages per error type, reply vs. followup, swallowed HTTP errors, installing and restoring the global `tree.on_error`. |
 | [`tests/test_character_routes.py`](../tests/test_character_routes.py) | Agent lookup by key and aliases, case/whitespace normalization, full `Back` history, every route pointing to an embed listed in its category, autocomplete ranking, the 25-result limit and duplicate-alias rejection (on test-only routes), the `agent` parameter with its autocomplete callback, Alice's paginated sections, tabs, and page numbers. |
+| [`tests/test_navigation_tree.py`](../tests/test_navigation_tree.py) | Walks the whole `/characters` tree from `Main`: every level builds and its select fits Discord limits, embeds fit the embed limits, `N/M` page numbers and "N сторінок" in tab descriptions match the real page counts, images use stable `https` links (no Discord attachments), and agent routes follow real tree paths. New agents and sections are covered automatically. |
+| [`tests/test_wiki_images.py`](../tests/test_wiki_images.py) | No signed Discord attachment links anywhere in `embeds/` source files. |
 | [`tests/test_status_heartbeat.py`](../tests/test_status_heartbeat.py) | Bot-side heartbeat payload, reporter settings, delivery with retry/backoff, env float parsing. |
 | [`tests/test_version_and_logging.py`](../tests/test_version_and_logging.py) | Version order (`BOT_VERSION` → Git → `config.json`), Git queried once, a real process without Git, `standard.log` rotation. |
 | [`tests/test_status_service.py`](../tests/test_status_service.py) | State evaluation, payload validation, settings, the state store, the webhook publisher, the status embed, the monitor loop, and the HTTP endpoints. |
@@ -86,9 +88,9 @@ Not covered yet:
 - the real global command sync (only `register_commands` with a fake tree is
   tested);
 - slash command callbacks other than the `/help` category select;
-- the remaining branches of `/characters`;
 - the structure of `config.json`;
-- validity of external URLs and custom emoji;
+- whether external image URLs actually load and custom emoji exist (only the
+  URL scheme/host and the emoji markup are checked);
 - logging behavior.
 
 ## CI

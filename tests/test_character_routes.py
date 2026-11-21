@@ -1,4 +1,3 @@
-import re
 import unittest
 from unittest.mock import patch
 
@@ -56,28 +55,6 @@ class CharacterRouteTests(unittest.TestCase):
         basic_info_pages = CharactersMainEmbeds.get_pages("AliceBasicInfo")
         self.assertEqual(len(basic_info_pages[0].fields), 7)
         self.assertEqual(len(basic_info_pages[1].fields), 3)
-
-    def test_alice_page_numbers_match_real_page_counts(self) -> None:
-        for option in CharactersMainEmbeds.Alice_children:
-            pages = CharactersMainEmbeds.get_pages(option["value"])
-            count = len(pages)
-
-            # "— N сторінок/сторінки/сторінка" in the tab description.
-            described = re.search(r"— (\d+) стор", option["description"])
-            self.assertIsNotNone(described, option["value"])
-            self.assertEqual(int(described.group(1)), count, option["value"])
-
-            for index, page in enumerate(pages, start=1):
-                numbered = re.search(r" — (\d+)/(\d+)$", page.title)
-                if count == 1:
-                    self.assertIsNone(numbered, page.title)
-                else:
-                    self.assertIsNotNone(numbered, page.title)
-                    self.assertEqual(
-                        (int(numbered.group(1)), int(numbered.group(2))),
-                        (index, count),
-                        page.title,
-                    )
 
     def test_alice_class_has_no_temporary_variables(self) -> None:
         # Helper lists used while building pages must not leak as attributes.
