@@ -151,16 +151,20 @@ The [`.github/workflows/release.yml`](../.github/workflows/release.yml)
 workflow runs when a `v*.*.*` tag is pushed:
 
 1. `Verify tag`: the tag must equal `v` + `config.json → bot.version`, and the
-   tagged commit must be on `main`;
+   tagged commit must be a commit of `main` itself (on its first-parent
+   history, in practice the merge commit of `dev` → `main`). A `dev` commit
+   that `main` merged is rejected: its image was built from `dev`;
 2. `CI checks`: the full CI workflow above;
 3. `Tag release image in GHCR`: after both pass, adds the `vX.Y.Z` tag to the
    already published `sha-<12-character SHA>` image of the tagged commit,
-   without rebuilding (see [Docker → Registry](docker.md#registry-ghcr)). If
-   that image does not appear within 20 minutes, the release fails. Only this
-   job has `packages: write`;
+   without rebuilding (see [Docker → Registry](docker.md#registry-ghcr)), and
+   moves `stable` to the same image if this is the newest version. If that
+   image does not appear within 20 minutes, the release fails. Only this job
+   has `packages: write`;
 4. `Create draft GitHub Release`: only if all of the above pass, using the
-   `gh` CLI with generated notes. Only this job can write to the repository
-   (`contents: write`).
+   `gh` CLI with generated notes; if a release for the tag already exists
+   (a re-run), it is left as it is. Only this job can write to the
+   repository (`contents: write`).
 
 Publishing the draft stays a manual step on GitHub.
 
@@ -172,7 +176,9 @@ For each release:
 2. PR `dev` into `main` once CI is green, and merge.
 3. Wait until the "CI and Docker publish" run for the merge commit on `main`
    has succeeded (it publishes the `sha-` image the release tags), then tag
-   that commit and push the tag:
+   that merge commit and push the tag. Switch to `main` and pull first: a tag
+   on the `dev` commit is rejected, and it would also make GitHub's
+   generated notes compare against an older release:
 
    ```powershell
    git switch main
