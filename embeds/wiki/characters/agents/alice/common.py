@@ -1,8 +1,11 @@
 """Shared look of Alice's pages: color, icons, author and footer."""
 
+from collections.abc import Sequence
+from typing import Any
+
 import discord
 
-from embeds.general import add_default_footer
+from embeds.general import LinkedEmbed, add_default_footer, add_fields
 from utils.misc import HEXtoColor
 
 COLOR = "243A63"
@@ -26,6 +29,29 @@ def decorate(embed: discord.Embed) -> discord.Embed:
     )
     embed.set_thumbnail(url=ICON_URL)
     return add_default_footer(embed)
+
+
+def field(name: str, value: str, *, inline: bool = False) -> dict[str, Any]:
+    """One embed field; full width unless `inline`."""
+    return {"name": name, "value": value, "inline": inline}
+
+
+def page(
+    name: str,
+    description: str | None = None,
+    *,
+    fields: Sequence[dict[str, Any]] = (),
+    links: Sequence[tuple[str, str]] = (),
+) -> discord.Embed:
+    """A content page: `name` is the short page name (the section adds the full title)."""
+    embed = LinkedEmbed(
+        title=name,
+        description=description,
+        color=HEXtoColor(COLOR),
+        links=links,
+    )
+    add_fields(embed, fields)
+    return decorate(embed)
 
 
 def placeholder_page(name: str, planned: str) -> discord.Embed:

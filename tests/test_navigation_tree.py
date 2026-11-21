@@ -12,6 +12,7 @@ import unittest
 
 import discord
 
+from embeds.general import MAX_PAGE_LINKS
 from embeds.wiki.characters import AGENT_ROUTES, CharactersMainEmbeds
 from views.nav import MAX_SELECT_OPTIONS, build_navigation_level
 
@@ -29,6 +30,7 @@ EMBED_AUTHOR_LIMIT = 256
 EMBED_TOTAL_LIMIT = 6000
 SELECT_OPTION_TEXT_LIMIT = 100  # label, value and description
 SELECT_PLACEHOLDER_LIMIT = 150
+LINK_LABEL_LIMIT = 80
 
 PAGE_NUMBER = re.compile(r" — (\d+)/(\d+)$")
 ANNOUNCED_PAGES = re.compile(r"— (\d+) стор")
@@ -158,6 +160,15 @@ class NavigationTreeEmbedTests(unittest.TestCase):
                 with self.subTest(title=embed.title, kind=kind):
                     self.assertTrue(url.startswith("https://"), url)
                     self.assertIsNone(DISCORD_ATTACHMENT.search(url), url)
+
+    def test_page_links_are_valid_link_buttons(self) -> None:
+        for embed in all_embeds():
+            links = getattr(embed, "links", ())
+            with self.subTest(title=embed.title):
+                self.assertLessEqual(len(links), MAX_PAGE_LINKS)
+                for label, url in links:
+                    self.assertTrue(0 < len(label) <= LINK_LABEL_LIMIT, label)
+                    self.assertTrue(url.startswith("https://"), url)
 
     def test_page_numbers_match_real_page_counts(self) -> None:
         numbered_ids: set[int] = set()

@@ -53,7 +53,8 @@ class CharacterRouteTests(unittest.TestCase):
             )
 
         basic_info_pages = CharactersMainEmbeds.get_pages("AliceBasicInfo")
-        self.assertEqual(len(basic_info_pages[0].fields), 7)
+        # Overview fields per docs/agent-template.md (rank ... how to obtain).
+        self.assertEqual(len(basic_info_pages[0].fields), 9)
         self.assertEqual(len(basic_info_pages[1].fields), 3)
 
     def test_alice_class_has_no_temporary_variables(self) -> None:

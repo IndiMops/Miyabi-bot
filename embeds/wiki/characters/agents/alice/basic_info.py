@@ -12,7 +12,7 @@ from .common import COLOR, decorate
 # Page 1: overview.
 OVERVIEW = discord.Embed(
     title="Огляд",
-    description="Alice Thymefield — спадкоємиця престижної родини Thymefield, талановита фехтувальниця та дослідниця Ether science. Вона навчається у Celestia School for Girls, є зразковою ученицею та входить до складу Spook Shack.\n\nПопри сильний страх перед привидами й надприродними явищами, Alice відчуває до них майже нездорову цікавість. У бою вона виступає як Physical Anomaly DPS, накопичує ресурс Blade Etiquette та витрачає його на заряджену атаку Starshine Waltz, здатну активувати особливий ефект Polarity Assault.",
+    description="Alice Thymefield — спадкоємиця престижної родини Thymefield, талановита фехтувальниця та дослідниця Ether science. Вона навчається у Celestia School for Girls, є зразковою ученицею та входить до складу Spook Shack.\n\nПопри сильний страх перед привидами й надприродними явищами, Alice відчуває до них майже нездорову цікавість. У бою вона виступає як Physical Anomaly DPS, накопичує ресурс Blade Etiquette та витрачає його на заряджену атаку Starshine Waltz, здатну активувати особливий ефект Polarized Assault.",
     color=HEXtoColor(COLOR),
 ).set_image(
     url="https://i.imgur.com/2Hf0bg6.png"
@@ -39,8 +39,14 @@ add_fields(OVERVIEW, [
         "value": "<:Faction_Spook_Shack:1530872488047804486> Spook Shack",
         "inline": True,
     },
-    {"name": "Дата народження:", "value": "30.07", "inline": True},
-    {"name": "Реліз:", "value": "<t:1754484720:D>", "inline": True},
+    {"name": "Тип атаки:", "value": "Slash", "inline": True},
+    {"name": "Бойова роль:", "value": "Anomaly DPS", "inline": True},
+    {"name": "Реліз:", "value": "<t:1754484720:D> (версія 2.1)", "inline": True},
+    {
+        "name": "Отримання:",
+        "value": "Лімітований агент, Exclusive Channel «Sworn to Noble Courage»",
+        "inline": True,
+    },
     {
         "name": "Ексклюзивний W-Engine:",
         "value": "<:Practiced_Perfection:1533459749700636673> [Відточена досконалість](https://zenless-zone-zero.fandom.com/wiki/Practiced_Perfection)",
