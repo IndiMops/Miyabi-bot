@@ -199,11 +199,12 @@ same manifest digest with Docker's containerd image store).
 |---|---|---|
 | `sha-<12-character SHA>` | push to `dev` or `main` | The image of that exact commit. Never moved or overwritten; use it to pin a deployment. |
 | `beta` | push to `dev` | Development environment: the latest published `dev` commit. |
-| `stable`, `latest` | push to `main` | Stable environment: the latest published `main` commit. Both always point to the same image. |
-| `vX.Y.Z` | `vX.Y.Z` Git tag ([release workflow](development.md#releases)) | Official release: the `sha-` image of the tagged `main` commit. Never moved. |
+| `latest` | push to `dev` or `main` | The most recently published image of either branch, so it can be an untested `dev` build. Do not deploy it. |
+| `stable` | `vX.Y.Z` Git tag ([release workflow](development.md#releases)) | The newest official release: moves together with the newest `vX.Y.Z`, never on a branch push. |
+| `vX.Y.Z` | `vX.Y.Z` Git tag ([release workflow](development.md#releases)) | Official release: the `sha-` image of the tagged commit of `main` itself (a `main` merge commit). Never moved. |
 
-A `dev` run never touches `stable`/`latest`, and a `main` run never touches
-`beta`. Pushes to the `dev` branch used to also move a `dev` image tag; the
+Only `dev` runs move `beta`; runs of both branches move `latest`; no branch
+run ever moves `stable` or a version tag. Pushes to the `dev` branch used to also move a `dev` image tag; the
 workflow no longer sets it, so a `dev` image tag that may still exist in GHCR
 is stale (it points to an old commit) and should not be used. Moving tags are
 re-pointed by digest (`docker buildx imagetools create`), so the old image stays available under its `sha-` tag; nothing is
@@ -223,11 +224,15 @@ branch; if not (for example, a re-run of an older commit), it pushes only the
 `sha-` tag. After pushing, it checks that each tag in the registry has the
 digest of the source image.
 
-The [release workflow](development.md#releases) never builds an image. For a
-`vX.Y.Z` tag it finds `sha-<12-character SHA>` of the tagged commit (waiting
-up to 20 minutes for a running publish), adds `vX.Y.Z` to that manifest by
-digest, and checks that both tags have the same digest. If the `sha-` image is
-missing, or `vX.Y.Z` already points to a different image, the release fails.
+The [release workflow](development.md#releases) never builds an image. It
+accepts only a tag on a commit of `main` itself (`git rev-list --first-parent
+origin/main`); a `dev` commit merged into `main` is rejected, because its image
+was built from `dev`. For the tag it finds `sha-<12-character SHA>` of that
+commit (waiting up to 20 minutes for a running publish), adds `vX.Y.Z` to that
+manifest by digest and, if this is the newest version, moves `stable` to it as
+well, then checks that all of these tags have the same digest. If the `sha-`
+image is missing, or `vX.Y.Z` already points to a different image, the release
+fails.
 
 Pull an image built from a specific commit:
 
@@ -247,8 +252,9 @@ A future deployment uses the registry image instead of building, by setting
 MIYABI_IMAGE=ghcr.io/indimops/miyabi-bot:sha-<12-character SHA> docker compose up -d --no-build
 ```
 
-Prefer a `sha-` or `vX.Y.Z` tag (or a digest) over a moving tag (`beta`,
-`stable`, `latest`), so the server runs a known commit.
+Prefer a `vX.Y.Z` or `sha-` tag (or a digest), so the server runs a known
+commit. Of the moving tags, only `stable` is meant for the server (it changes
+only with a release); `beta` and `latest` can point to untested `dev` builds.
 
 Publishing is **not** deployment: the workflow only pushes to GHCR. It does
 not connect to the home server and does not start, stop, or update the bot

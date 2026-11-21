@@ -8,10 +8,12 @@ name: CI and Docker publish
 # cannot publish. Publishing is not a deployment (see docs/docker.md →
 # "Registry").
 #
-#   dev  → beta, dev, sha-<12-character SHA>
-#   main → stable, latest, sha-<12-character SHA>
+#   dev  → beta, latest, sha-<12-character SHA>
+#   main → latest, sha-<12-character SHA>
 #
-# Version tags (vX.Y.Z) are added to an existing sha- image by release.yml.
+# latest is the image of the most recent publish from either branch. stable
+# and the version tags (vX.Y.Z) are set only by release.yml, on the image of a
+# released main commit.
 on:
   push:
     branches: ["dev", "main"]
@@ -63,11 +65,11 @@ jobs:
     steps:
       - name: Compute tags
         run: |
-          # The channel tags are fixed per branch: a dev run can never move
-          # stable/latest, and a main run can never move beta.
+          # beta belongs to dev only; latest follows the newest publish of
+          # either branch; stable is never moved here (release.yml does that).
           case "$BRANCH" in
-            dev) channel_tags="beta" ;;
-            main) channel_tags="stable latest" ;;
+            dev) channel_tags="beta latest" ;;
+            main) channel_tags="latest" ;;
             *) echo "::error::No image channel for branch $BRANCH"; exit 1 ;;
           esac
           for value in ARTIFACT EXPECTED_ID EXPECTED_SHA256 BOT_VERSION; do
