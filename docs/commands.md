@@ -115,5 +115,6 @@ they are loaded, any user who can see the bot can invoke them.
 - `/help` does not describe the dev commands.
 - Custom emoji depend on the availability of specific Discord emoji.
 - Only Alice's overview, stats, and play style pages have content; her other
-  sections are placeholders.
+  pages are placeholders laid out per the
+  [agent page template](agent-template.md).
 - No command has a rate limit, cooldown, or role-based restrictions.

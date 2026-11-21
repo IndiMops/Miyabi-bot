@@ -37,7 +37,8 @@ embeds/
 - `routes.py` — stable keys, aliases, and breadcrumbs for a direct jump.
 - `agents/<name>/` — the pages of one agent, one module per section. Each
   module defines a `Section` (tab label, short summary, pages); the tab
-  description gets the real page count automatically.
+  description gets the real page count automatically. Structure and content
+  rules: [docs/agent-template.md](../docs/agent-template.md).
 - `views/` — generic behavior of select menus, `Back`, and pagination.
 
 A new agent gets its own package next to `alice/`. Its class is exported from

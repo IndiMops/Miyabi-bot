@@ -15,7 +15,7 @@ Miyabi-bot/
 ├── config.json               # public configuration
 ├── requirements.txt          # runtime dependencies
 ├── cogs/
-│   ├── core/                 # status heartbeat (no commands)
+│   ├── core/                 # global error handler, status heartbeat (no commands)
 │   ├── information/          # /help and /info
 │   ├── wiki/                 # /characters
 │   └── dev/                  # test commands
@@ -28,14 +28,16 @@ Miyabi-bot/
 │           ├── routes.py     # keys, aliases, and breadcrumbs
 │           ├── sections.py   # Section: a select tab with its pages
 │           └── agents/       # one package per character, one module per section
+│                             # (rules: docs/agent-template.md)
 ├── views/
 │   ├── nav.py                # nested select menus
 │   └── pagination.py         # button pagination
 ├── utils/
+│   ├── commands.py           # command registry: IDs and </name:ID> mentions
 │   ├── config.py             # .env + config.json
 │   ├── logger.py             # Loguru and standard logging
 │   ├── heartbeat.py          # heartbeat payload and delivery
-│   └── misc.py               # JSON, colors, version, fetch commands
+│   └── misc.py               # JSON, colors, version
 ├── status_service/           # separate status monitoring process
 ├── tests/                    # local unit tests
 └── docs/                     # documentation
