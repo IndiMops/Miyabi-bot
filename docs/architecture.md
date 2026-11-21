@@ -26,7 +26,8 @@ Miyabi-bot/
 │       └── characters/
 │           ├── menu.py       # root tree registry
 │           ├── routes.py     # keys, aliases, and breadcrumbs
-│           └── agents/       # one file per character
+│           ├── sections.py   # Section: a select tab with its pages
+│           └── agents/       # one package per character, one module per section
 ├── views/
 │   ├── nav.py                # nested select menus
 │   └── pagination.py         # button pagination
