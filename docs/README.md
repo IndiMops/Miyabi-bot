@@ -45,8 +45,8 @@ In normal mode (`DEBUG=False`) the following are loaded:
 
 - `/info`;
 - `/help`;
-- `/characters` — contains Alice's pages, demo pagination for 35 placeholder
-  fire agents, and safe placeholders for the other attributes.
+- `/characters` — contains Alice's pages and safe placeholders for the other
+  attributes.
 
 In debug mode the test commands `/ping`, `/pagination_test`, and `/deep_menu`
 are loaded as well. They **have no owner check**, so with global sync they are

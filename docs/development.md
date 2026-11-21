@@ -75,7 +75,7 @@ small functional change: it will produce a large unrelated diff.
 | [`tests/test_help.py`](../tests/test_help.py) | Help content consistency (every categorized command is documented, Discord field limits), mention placeholders, overview/category/command embeds, autocomplete without Discord requests, the category select. |
 | [`tests/test_views.py`](../tests/test_views.py) | Timeout handling (components disabled through the latest interaction, an expired token only logged), pagination buttons and edge pages, `NavSelect` callbacks (child, `Back`, old view stopped, new view bound), and `page_state` for levels with more than 24 children. |
 | [`tests/test_error_handler.py`](../tests/test_error_handler.py) | User messages per error type, reply vs. followup, swallowed HTTP errors, installing and restoring the global `tree.on_error`. |
-| [`tests/test_character_routes.py`](../tests/test_character_routes.py) | Agent lookup by key and aliases, case/whitespace normalization, full `Back` history, Fire routes matching real embed keys, autocomplete ranking and the 25-result limit, the `agent` parameter with its autocomplete callback, Alice's paginated sections and tabs. |
+| [`tests/test_character_routes.py`](../tests/test_character_routes.py) | Agent lookup by key and aliases, case/whitespace normalization, full `Back` history, every route pointing to an embed listed in its category, autocomplete ranking, the 25-result limit and duplicate-alias rejection (on test-only routes), the `agent` parameter with its autocomplete callback, Alice's paginated sections, tabs, and page numbers. |
 | [`tests/test_status_heartbeat.py`](../tests/test_status_heartbeat.py) | Bot-side heartbeat payload, reporter settings, delivery with retry/backoff, env float parsing. |
 | [`tests/test_version_and_logging.py`](../tests/test_version_and_logging.py) | Version order (`BOT_VERSION` → Git → `config.json`), Git queried once, a real process without Git, `standard.log` rotation. |
 | [`tests/test_status_service.py`](../tests/test_status_service.py) | State evaluation, payload validation, settings, the state store, the webhook publisher, the status embed, the monitor loop, and the HTTP endpoints. |
@@ -291,9 +291,7 @@ root and run `python bot.py` again.
 
 ## Useful backlog for the next return
 
-1. Replace the 35 fire placeholders with real game data.
-2. Fill in the ice, electric, and ether branches.
+1. Add real agents to the fire, ice, electric, and ether branches.
+2. Fill in Alice's remaining placeholder pages.
 3. Protect dev commands with owner/permission checks regardless of `DEBUG`.
-4. Add tests for `NavView` and all character branches.
-5. Replace temporary Discord attachment URLs with stable assets.
-6. Define a deployment process and a version check before release.
+4. Define a deployment process and a version check before release.

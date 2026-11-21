@@ -1,10 +1,13 @@
 import re
 import unittest
+from unittest.mock import patch
 
 from cogs.wiki.characters import CharactersCommand
+from embeds.wiki.characters import routes as routes_module
 from embeds.wiki.characters.agents import AliceEmbed
 from embeds.wiki.characters import (
     AGENT_ROUTES,
+    AgentRoute,
     CharactersMainEmbeds,
     find_agent_route,
     search_agent_routes,
@@ -171,29 +174,73 @@ class CharacterRouteTests(unittest.TestCase):
             ["Main", "PhysicalCharacters", "Alice"],
         )
 
-    def test_fire_routes_point_to_existing_embeds(self) -> None:
-        fire_routes = [
-            route
-            for route in AGENT_ROUTES
-            if route.category_key == "FireCharacters"
-        ]
+    def test_every_route_points_to_an_embed_listed_in_its_category(self) -> None:
+        for route in AGENT_ROUTES:
+            category_values = [
+                child["value"]
+                for child in CharactersMainEmbeds.get_children(route.category_key)
+            ]
 
-        self.assertEqual(len(fire_routes), 35)
-        self.assertTrue(
-            all(hasattr(CharactersMainEmbeds, route.key) for route in fire_routes)
+            self.assertTrue(hasattr(CharactersMainEmbeds, route.key), route.key)
+            self.assertIn(route.key, category_values, route.key)
+
+    def test_only_real_agents_are_routed(self) -> None:
+        # The 35 fire placeholder agents were removed (plan task B7).
+        self.assertEqual([route.key for route in AGENT_ROUTES], ["Alice"])
+        self.assertEqual(CharactersMainEmbeds.get_children("FireCharacters"), [])
+        self.assertIsNone(CharactersMainEmbeds.get_pages("FireCharacters"))
+
+    def test_empty_query_returns_every_real_agent(self) -> None:
+        self.assertEqual(
+            [route.key for route in search_agent_routes("")],
+            [route.key for route in AGENT_ROUTES],
         )
 
-    def test_autocomplete_prioritizes_exact_alias(self) -> None:
-        matches = search_agent_routes("fire agent 30")
 
-        self.assertTrue(matches)
-        self.assertEqual(matches[0].key, "FireAgent30")
+def _fake_routes(count: int) -> tuple[AgentRoute, ...]:
+    """Test-only routes, so ranking and limits do not depend on real content."""
+    return tuple(
+        AgentRoute(
+            key=f"Agent{index:02d}",
+            display_name=f"Тестовий агент {index:02d}",
+            category_key="FireCharacters",
+            aliases=(f"Test agent {index}",),
+        )
+        for index in range(1, count + 1)
+    )
+
+
+class AgentSearchRankingTests(unittest.TestCase):
+    def test_autocomplete_prioritizes_exact_alias(self) -> None:
+        with patch.object(routes_module, "AGENT_ROUTES", _fake_routes(30)):
+            matches = search_agent_routes("test agent 1")
+
+        # Exact alias first, then prefix matches ("test agent 10".."19").
+        self.assertEqual(matches[0].key, "Agent01")
+        self.assertEqual(
+            [route.key for route in matches[1:]],
+            [f"Agent{index}" for index in range(10, 20)],
+        )
 
     def test_autocomplete_is_limited_to_discord_capacity(self) -> None:
-        matches = search_agent_routes("")
+        with patch.object(routes_module, "AGENT_ROUTES", _fake_routes(30)):
+            matches = search_agent_routes("")
 
         self.assertEqual(len(matches), 25)
         self.assertEqual(len({route.key for route in matches}), 25)
+
+    def test_duplicate_alias_is_rejected(self) -> None:
+        first, second = _fake_routes(2)
+        clash = AgentRoute(
+            key=second.key,
+            display_name=second.display_name,
+            category_key=second.category_key,
+            aliases=("Test agent 1",),
+        )
+
+        with patch.object(routes_module, "AGENT_ROUTES", (first, clash)):
+            with self.assertRaisesRegex(ValueError, "Duplicate agent alias"):
+                routes_module._build_route_index()
 
 
 class CharacterAutocompleteTests(unittest.IsolatedAsyncioTestCase):

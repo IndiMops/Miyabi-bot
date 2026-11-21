@@ -49,9 +49,9 @@ Current tree:
 ```text
 Main
 ├── Physical agents
-│   └── Alice → Overview / Skills / Build
-├── Fire agents
-│   └── 35 test agents → pages of 24 + 11
+│   └── Alice → Basic info / Combat mechanics / Skills /
+│               Mindscape Cinema / Progression / Profile
+├── Fire agents       # safe placeholder page
 ├── Ice agents        # safe placeholder page
 ├── Electric agents   # safe placeholder page
 └── Ether agents      # safe placeholder page
@@ -62,8 +62,9 @@ On nested levels one of the 25 available select options is reserved for
 switch the embed and the set of options at the same time. After viewing a
 character, `Back` returns the user to the same page of the list.
 
-The 35 fire agents are only technical placeholders demonstrating the
-mechanism. Without a parameter the command opens the main menu:
+No branch has more than 24 agents yet; that path is covered by tests on a
+test-only menu (`tests/test_views.py`). Without a parameter the command opens
+the main menu:
 
 ```text
 /characters
@@ -75,7 +76,6 @@ alternative names:
 ```text
 /characters agent:Аліса Таймфілд
 /characters agent:Alice
-/characters agent:FireAgent30
 ```
 
 A direct jump restores the full route `Main → category → agent`, so the `Back`
@@ -111,11 +111,9 @@ they are loaded, any user who can see the bot can invoke them.
 
 ## Current limitations
 
-- The ice, electric, and ether branches have no characters yet.
-- The fire agents are demo placeholders, not game data.
+- The fire, ice, electric, and ether branches have no characters yet.
 - `/help` does not describe the dev commands.
-- Some images use signed Discord attachment URLs, which can expire.
 - Custom emoji depend on the availability of specific Discord emoji.
-- Alice currently has only a short introductory embed without stats, skills,
-  or build information.
+- Only Alice's overview, stats, and play style pages have content; her other
+  sections are placeholders.
 - No command has a rate limit, cooldown, or role-based restrictions.
