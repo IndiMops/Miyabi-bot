@@ -8,28 +8,57 @@ from discord.ui import View
 from utils.config import Config
 from utils.logger import logger
 
+# Link buttons of a page always go to the last action row, below the
+# pagination buttons and the select menu.
+LINK_BUTTON_ROW = 4
+
+
+def _is_link_button(item: discord.ui.Item) -> bool:
+    return isinstance(item, discord.ui.Button) and item.url is not None
+
 
 class TimeoutView(View):
-    """A view that disables its components when its configured timeout expires."""
+    """A view that disables its components when its configured timeout expires.
+
+    Ephemeral messages can only be edited through the token of an interaction
+    (valid for 15 minutes), not through `Message.edit`. The view therefore keeps
+    the latest interaction it handled and edits the message through it on timeout.
+    """
 
     def __init__(self, *, timeout: Optional[float] = None) -> None:
         if timeout is None:
             timeout = float(Config.PUBLIC.bot.nav_menu_timeout)
         super().__init__(timeout=timeout)
-        self._message: Optional[discord.InteractionMessage] = None
+        self._interaction: Optional[discord.Interaction] = None
 
-    def bind_to_message(self, message: discord.InteractionMessage) -> None:
-        self._message = message
+    def bind_to_interaction(self, interaction: discord.Interaction) -> None:
+        """Remember the interaction whose message this view is attached to."""
+        self._interaction = interaction
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        # Every click refreshes the token the timeout handler will use.
+        self._interaction = interaction
+        return True
+
+    def show_links(self, embed: discord.Embed) -> None:
+        """Show the link buttons of `embed` (its `links` attribute) in the bottom row."""
+        for item in list(self.children):
+            if _is_link_button(item):
+                self.remove_item(item)
+        for label, url in getattr(embed, "links", ()):
+            self.add_item(discord.ui.Button(label=label, url=url, row=LINK_BUTTON_ROW))
 
     async def on_timeout(self) -> None:
         for item in self.children:
+            if _is_link_button(item):
+                continue  # links need no interaction, so they keep working
             item.disabled = True
 
-        if self._message is None:
+        if self._interaction is None:
             return
 
         try:
-            await self._message.edit(view=self)
+            await self._interaction.edit_original_response(view=self)
         except discord.HTTPException as error:
             logger.opt(exception=error).warning(
                 "Could not disable navigation after timeout"
@@ -78,6 +107,8 @@ class PaginationView(TimeoutView):
 
         if select_menu is not None:
             self.add_item(select_menu)
+
+        self.show_links(self._embeds[self._current_page])
 
     async def _show_page(self, interaction: discord.Interaction) -> None:
         try:

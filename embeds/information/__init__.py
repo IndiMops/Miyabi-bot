@@ -1,5 +1,23 @@
 """Embeds for informational bot commands."""
 
-from .help import CommandsHelpEmbeds, HelpCategory, HelpCommands
+from .help import (
+    COMMAND_DOCS,
+    HELP_CATEGORIES,
+    CommandDoc,
+    HelpCategory,
+    build_category_embed,
+    build_command_embed,
+    build_main_embed,
+    get_category,
+)
 
-__all__ = ["CommandsHelpEmbeds", "HelpCategory", "HelpCommands"]
+__all__ = [
+    "COMMAND_DOCS",
+    "HELP_CATEGORIES",
+    "CommandDoc",
+    "HelpCategory",
+    "build_category_embed",
+    "build_command_embed",
+    "build_main_embed",
+    "get_category",
+]

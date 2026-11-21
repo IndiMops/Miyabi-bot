@@ -15,7 +15,7 @@ Miyabi-bot/
 ├── config.json               # public configuration
 ├── requirements.txt          # runtime dependencies
 ├── cogs/
-│   ├── core/                 # status heartbeat (no commands)
+│   ├── core/                 # global error handler, status heartbeat (no commands)
 │   ├── information/          # /help and /info
 │   ├── wiki/                 # /characters
 │   └── dev/                  # test commands
@@ -26,15 +26,18 @@ Miyabi-bot/
 │       └── characters/
 │           ├── menu.py       # root tree registry
 │           ├── routes.py     # keys, aliases, and breadcrumbs
-│           └── agents/       # one file per character
+│           ├── sections.py   # Section: a select tab with its pages
+│           └── agents/       # one package per character, one module per section
+│                             # (rules: docs/agent-template.md)
 ├── views/
 │   ├── nav.py                # nested select menus
 │   └── pagination.py         # button pagination
 ├── utils/
+│   ├── commands.py           # command registry: IDs and </name:ID> mentions
 │   ├── config.py             # .env + config.json
 │   ├── logger.py             # Loguru and standard logging
 │   ├── heartbeat.py          # heartbeat payload and delivery
-│   └── misc.py               # JSON, colors, version, fetch commands
+│   └── misc.py               # JSON, colors, version
 ├── status_service/           # separate status monitoring process
 ├── tests/                    # local unit tests
 └── docs/                     # documentation
@@ -56,13 +59,27 @@ implicit namespace packages for now.
 6. With `DEBUG=False`, the loader skips folders listed in
    `disabled_cogs_folder`.
 7. Each module is loaded as an extension through its `async setup(bot)`.
-8. `tree.sync()` globally syncs all loaded slash commands.
+8. `register_commands()` globally syncs all loaded slash commands
+   (`SYNC_COMMANDS=False`: only fetches the existing ones) and stores their IDs
+   in the command registry (`utils/commands.py`) for `</name:ID>` mentions.
 9. The 30-second presence status loop starts.
 10. Once ready, the `on_ready` event writes a message to the log.
 
 If any cog raises `ExtensionError`, the loader logs the traceback and re-raises
 the error. As a result the whole startup stops — the bot does not keep running
 with a partial set of modules.
+
+## Error handling
+
+`cogs/core/errors.py` installs a global `CommandTree.on_error` handler for
+all slash commands. Commands do not wrap their body in `try/except`: an
+uncaught exception reaches the handler, which logs it (with a traceback for
+unexpected errors, a single line for expected ones such as cooldowns or
+failed checks) and sends the user an ephemeral message in Ukrainian. It
+replies through `followup` when the interaction was already answered.
+
+Errors inside UI components (select menus, buttons) do not go through the
+tree handler; they are handled by the view's own `on_error`.
 
 Every 30 seconds the presence status alternates between:
 
@@ -118,9 +135,10 @@ helper inside `cogs/` as a separate `.py` file unless it is a valid Discord
 extension: the loader will try to load every file whose name does not start
 with `__`.
 
-After the first sync, add the ID to `config.json` only if the command needs to
-be mentioned in an embed as `</example:ID>`. The entry is not required for the
-registration itself.
+To mention the command in an embed as `</example:ID>`, use
+`get_command("example").mention()` from `utils/commands.py` when the embed is
+built; to list it in `/help`, add a `CommandDoc` to
+`embeds/information/help.py` and put it into a category.
 
 ## Navigation embed contract
 
@@ -152,9 +170,21 @@ Navigation keeps its history in the view's memory and adds `Back` after the
 first level. If a node has `<Key>_pages`, it switches to
 [`PaginationView`](../views/pagination.py).
 
-Both views time out after 120 seconds by default. After the timeout old
-components may stay visible in Discord but no longer handle clicks. Old views
-are also not restored after a bot restart.
+A page can also carry link buttons: build it as a
+[`LinkedEmbed`](../embeds/general.py) with `links=[(label, url), ...]` (at most
+five). Both views show them in the bottom row for the page that is currently
+open (`TimeoutView.show_links`), and they keep working after the timeout,
+because opening a link needs no interaction.
+
+Both views time out after `bot.nav_menu_timeout` seconds in `config.json`
+(600 by default), counted from the last click. On timeout the view disables
+its components. Ephemeral messages can only be edited through an interaction
+token (valid for 15 minutes), so `TimeoutView` remembers the latest interaction
+it handled (`bind_to_interaction`; every click refreshes it through
+`interaction_check`) and edits the message with `edit_original_response`. If
+the token has already expired, the failure is only logged as a warning and the
+old components stay visible but no longer handle clicks. Old views are also
+not restored after a bot restart.
 
 For nested nodes `NavSelect` shows at most 24 children and adds `Back` as the
 25th option. If there are more children, `<Key>_pages` must contain the

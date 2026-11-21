@@ -33,6 +33,9 @@ def _env_float(name: str, default: float, minimum: float = 0.0) -> float:
 class Config:
     DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
     DEBUG = os.getenv("DEBUG", "False").lower() == "true"
+    # Sync slash commands with Discord on startup; when disabled, the existing
+    # registrations are only fetched to learn the command IDs.
+    SYNC_COMMANDS = os.getenv("SYNC_COMMANDS", "True").lower() == "true"
 
     # Status heartbeat reporter. Disabled unless both URL and secret are set.
     STATUS_HEARTBEAT_URL = os.getenv("STATUS_HEARTBEAT_URL", "").strip()
@@ -51,20 +54,3 @@ class Config:
                 "DISCORD_BOT_TOKEN is not set. Add it to the environment or .env file."
             )
         return cls.DISCORD_BOT_TOKEN
-
-    @classmethod
-    def get_command_id_by_name(cls, name: str) -> int | None:
-        """
-        Отримує ID команди за її назвою.
-
-        Args:
-            name (str): Назва команди.
-
-        Returns:
-            int | None: ID команди, якщо знайдено, або None.
-        """
-        commands = cls.PUBLIC.bot.get("commands", [])
-        for command in commands:
-            if command["name"] == name:
-                return command["id"]
-        return None

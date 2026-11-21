@@ -71,7 +71,7 @@ class CharactersCommand(commands.Cog):
             view=view,
             ephemeral=True,
         )
-        view.bind_to_message(await interaction.original_response())
+        view.bind_to_interaction(interaction)
 
 
 async def setup(bot: commands.Bot):

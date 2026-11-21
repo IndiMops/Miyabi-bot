@@ -35,21 +35,7 @@ ALICE_ROUTE = AgentRoute(
     ),
 )
 
-FIRE_PLACEHOLDER_ROUTES = tuple(
-    AgentRoute(
-        key=f"FireAgent{index:02d}",
-        display_name=f"Вогняний агент {index:02d}",
-        category_key="FireCharacters",
-        aliases=(
-            f"Вогняний агент {index}",
-            f"Агент {index}",
-            f"Fire agent {index}",
-        ),
-    )
-    for index in range(1, 36)
-)
-
-AGENT_ROUTES = (ALICE_ROUTE, *FIRE_PLACEHOLDER_ROUTES)
+AGENT_ROUTES = (ALICE_ROUTE,)
 
 
 def normalize_agent_query(value: str) -> str:
