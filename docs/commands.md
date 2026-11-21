@@ -114,7 +114,6 @@ they are loaded, any user who can see the bot can invoke them.
 - The fire, ice, electric, and ether branches have no characters yet.
 - `/help` does not describe the dev commands.
 - Custom emoji depend on the availability of specific Discord emoji.
-- Only Alice's overview, stats, and play style pages have content; her other
-  pages are placeholders laid out per the
+- Alice is the only agent so far; her pages follow the
   [agent page template](agent-template.md).
 - No command has a rate limit, cooldown, or role-based restrictions.

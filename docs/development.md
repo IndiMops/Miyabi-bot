@@ -294,7 +294,7 @@ root and run `python bot.py` again.
 
 ## Useful backlog for the next return
 
-1. Add real agents to the fire, ice, electric, and ether branches.
-2. Fill in Alice's remaining placeholder pages.
-3. Protect dev commands with owner/permission checks regardless of `DEBUG`.
-4. Define a deployment process and a version check before release.
+1. Add real agents to the fire, ice, electric, and ether branches
+   (see the [agent page template](agent-template.md)).
+2. Protect dev commands with owner/permission checks regardless of `DEBUG`.
+3. Define a deployment process and a version check before release.

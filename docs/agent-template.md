@@ -64,7 +64,7 @@ a simple numbered rotation that a first-time player can follow.
 **One page per unique mechanic** — for each important mechanic: the maximum
 resource, how it is gained, what it is spent on, how much it costs, and what
 happens at different charge levels. Alice has «Blade Etiquette та Starshine
-Waltz» and «Polarity Assault і Disorder»; another agent's pages can be
+Waltz» and «Polarized Assault і Disorder»; another agent's pages can be
 completely different.
 
 ### 3. «Навички» (skills)
@@ -124,7 +124,9 @@ Not just a list of materials, but how they are used:
 | «Загальна вартість» | Everything needed to max the agent. One of the most useful pages. |
 
 Pages may be merged: Alice has «Навички та Core Skill» on one page, so her
-section has four pages. Write amounts as `<Material> ×N`.
+section has four pages. Write amounts as `<Material> ×N`. Agent leveling
+itself costs only EXP materials, no Denny; the signature W-Engine and Drive
+Discs are not part of this section.
 
 ### 6. «Профіль» (profile)
 
@@ -135,15 +137,16 @@ section has four pages. Write amounts as `<Material> ×N`.
 | «Озвучення» | Voice actors: Chinese, English, Japanese, Korean; mention actor changes. Outfits can go here if there are few (Alice: «Озвучення та костюми»). |
 | «Медіа» | Official media (Agent Record, Character Teaser, Character Demo, Official Page, EP) as Discord **link buttons**, not long URLs in the text. For each: official name, type, official link. |
 
-Link buttons on a section page are not supported by `NavView` and
-`PaginationView` yet; the views need a small extension when the media page is
-filled.
+Build the media page as a `LinkedEmbed` (the `links=` argument of `page()` in
+the agent's `common.py`): up to five `(label, url)` pairs, shown as link
+buttons under the page. Check that every video is on the official channel
+before adding it.
 
 ## Text style
 
 - Ukrainian text. Official English names of skills, mechanics, materials,
   W-Engines, and so on stay in English unless there is an established Ukrainian
-  translation (Blade Etiquette, Starshine Waltz, Polarity Assault, Core
+  translation (Blade Etiquette, Starshine Waltz, Polarized Assault, Core
   Passive, Additional Ability, Physical Anomaly, Disorder, W-Engine). Players
   can then find the same mechanic in the game. The explanations around them are
   in Ukrainian.
@@ -207,9 +210,9 @@ holds its pages, and `Section` is the seam the model will replace.
 
 | Section | Pages | Status |
 |---|---|---|
-| «Основна інформація» | «Огляд» · «Характеристики» | Filled. The overview fields still need to match this template (damage type, combat role; the birthday moves to «Особисті дані»). |
-| «Бойові механіки» | «Стиль гри» · «Blade Etiquette та Starshine Waltz» · «Polarity Assault і Disorder» | Page 1 filled, pages 2–3 placeholders. |
-| «Навички» | «Basic Attack» · «Dodge» · «Assist» · «Special Attack» · «Chain Attack / Ultimate» · «Core Skill» | Placeholders. |
-| «Mindscape Cinema» | «M1–M2» · «M3–M4» · «M5–M6» | Placeholders. |
-| «Прокачування» | «Рівень агента» · «Promotion» · «Навички та Core Skill» · «Загальна вартість» | Placeholders. |
-| «Профіль» | «Біографія» · «Особисті дані» · «Озвучення та костюми» · «Медіа» | Placeholders. |
+| «Основна інформація» | «Огляд» · «Характеристики» | Filled. |
+| «Бойові механіки» | «Стиль гри» · «Blade Etiquette та Starshine Waltz» · «Polarized Assault і Disorder» | Filled. |
+| «Навички» | «Basic Attack» · «Dodge» · «Assist» · «Special Attack» · «Chain Attack / Ultimate» · «Core Skill» | Filled (key multipliers at Lv.12). |
+| «Mindscape Cinema» | «M1–M2» · «M3–M4» · «M5–M6» | Filled. |
+| «Прокачування» | «Рівень агента» · «Promotion» · «Навички та Core Skill» · «Загальна вартість» | Filled. |
+| «Профіль» | «Біографія» · «Особисті дані» · «Озвучення та костюми» · «Медіа» | Filled; media as link buttons. |
