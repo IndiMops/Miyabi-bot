@@ -28,18 +28,16 @@ def decorate(embed: discord.Embed) -> discord.Embed:
     return add_default_footer(embed)
 
 
-def placeholder_pages(section_title: str, page_count: int) -> list[discord.Embed]:
-    """Create temporary paginated embeds for a section without content yet."""
-    return [
-        decorate(
-            discord.Embed(
-                title=f"{section_title} — {page}/{page_count}",
-                description=(
-                    f"Заглушка для сторінки {page} розділу "
-                    f"«{section_title}». Тут пізніше буде додано вміст."
-                ),
-                color=HEXtoColor(COLOR),
-            )
+def placeholder_page(name: str, planned: str) -> discord.Embed:
+    """A page of the template whose content is not written yet.
+
+    `name` is the short page name (the section adds the full title), and
+    `planned` tells the reader what the page will contain.
+    """
+    return decorate(
+        discord.Embed(
+            title=name,
+            description=f"*Сторінка в роботі.* Тут буде: {planned}.",
+            color=HEXtoColor(COLOR),
         )
-        for page in range(1, page_count + 1)
-    ]
+    )

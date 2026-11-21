@@ -1,12 +1,26 @@
-"""Alice: progression section (placeholder pages until the content is written)."""
+"""Alice: progression section (materials needed to level her up)."""
 
-from embeds.wiki.characters.sections import Section
+from embeds.wiki.characters.sections import section
 
-from .common import placeholder_pages
+from .common import placeholder_page
 
-SECTION = Section(
+SECTION = section(
     key="AliceProgression",
     label="Прокачування",
     summary="Матеріали й розвиток",
-    pages=tuple(placeholder_pages("Прокачування", 4)),
+    pages=(
+        placeholder_page("Рівень агента", "матеріали EXP і Denny для рівнів 1 → 60"),
+        placeholder_page(
+            "Promotion",
+            "матеріали для підвищення рівневого ліміту з розподілом по рівнях",
+        ),
+        placeholder_page(
+            "Навички та Core Skill",
+            "матеріали для п'яти основних навичок і для Core Skill A → F",
+        ),
+        placeholder_page(
+            "Загальна вартість",
+            "усі матеріали для повного прокачування агента",
+        ),
+    ),
 )

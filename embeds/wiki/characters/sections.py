@@ -1,5 +1,6 @@
 """Shared building blocks for agent pages (see docs/agent-template.md)."""
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 import discord
@@ -39,3 +40,23 @@ class Section:
             "value": self.key,
             "description": f"{self.summary} — {pages_label(len(self.pages))}",
         }
+
+
+def section(
+    key: str,
+    label: str,
+    summary: str,
+    pages: Sequence[discord.Embed],
+) -> Section:
+    """Create a section and give each page its full title.
+
+    Pages are created with a short page name as the title ("Огляд"); here it
+    becomes "<label>: <page name> — <index>/<count>". The number is added only
+    when the section has more than one page, so it can never drift from the
+    real page count.
+    """
+    count = len(pages)
+    for index, page in enumerate(pages, start=1):
+        number = f" — {index}/{count}" if count > 1 else ""
+        page.title = f"{label}: {page.title}{number}"
+    return Section(key=key, label=label, summary=summary, pages=tuple(pages))

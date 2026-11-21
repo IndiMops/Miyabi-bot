@@ -35,7 +35,7 @@ class CharacterRouteTests(unittest.TestCase):
     def test_alice_has_expected_paginated_sections(self) -> None:
         expected_page_counts = {
             "AliceBasicInfo": 2,
-            "AliceCombatMechanics": 1,
+            "AliceCombatMechanics": 3,
             "AliceSkills": 6,
             "AliceMindscapeCinema": 3,
             "AliceProgression": 4,

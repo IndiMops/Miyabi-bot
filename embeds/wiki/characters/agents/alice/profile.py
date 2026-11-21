@@ -1,12 +1,26 @@
-"""Alice: profile section (placeholder pages until the content is written)."""
+"""Alice: profile section (lore and other non-combat information)."""
 
-from embeds.wiki.characters.sections import Section
+from embeds.wiki.characters.sections import section
 
-from .common import placeholder_pages
+from .common import placeholder_page
 
-SECTION = Section(
+SECTION = section(
     key="AliceProfile",
     label="Профіль",
     summary="Історія та дані",
-    pages=tuple(placeholder_pages("Профіль", 4)),
+    pages=(
+        placeholder_page("Біографія", "коротка біографія без великих сюжетних спойлерів"),
+        placeholder_page(
+            "Особисті дані",
+            "повне ім'я, день народження, зріст, фракція та інші відомі дані",
+        ),
+        placeholder_page(
+            "Озвучення та костюми",
+            "актори озвучення (китайська, англійська, японська, корейська) і костюми",
+        ),
+        placeholder_page(
+            "Медіа",
+            "посилання на офіційні відео та сторінки агента",
+        ),
+    ),
 )

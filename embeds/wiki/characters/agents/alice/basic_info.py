@@ -3,7 +3,7 @@
 import discord
 
 from embeds.general import add_fields
-from embeds.wiki.characters.sections import Section
+from embeds.wiki.characters.sections import section
 from utils.misc import HEXtoColor
 
 from .common import COLOR, decorate
@@ -11,7 +11,7 @@ from .common import COLOR, decorate
 
 # Page 1: overview.
 OVERVIEW = discord.Embed(
-    title="Основна інформація: Огляд — 1/2",
+    title="Огляд",
     description="Alice Thymefield — спадкоємиця престижної родини Thymefield, талановита фехтувальниця та дослідниця Ether science. Вона навчається у Celestia School for Girls, є зразковою ученицею та входить до складу Spook Shack.\n\nПопри сильний страх перед привидами й надприродними явищами, Alice відчуває до них майже нездорову цікавість. У бою вона виступає як Physical Anomaly DPS, накопичує ресурс Blade Etiquette та витрачає його на заряджену атаку Starshine Waltz, здатну активувати особливий ефект Polarity Assault.",
     color=HEXtoColor(COLOR),
 ).set_image(
@@ -53,7 +53,7 @@ decorate(OVERVIEW)
 
 # Page 2: stats.
 STATS = discord.Embed(
-    title="Основна інформація: Характеристики — 2/2",
+    title="Характеристики",
     description="*Характеристики на 60 рівні з повністю відкритим Core Skill F, без W-Engine і Drive Discs.*\n\n",
     color=HEXtoColor(COLOR)
 ).set_image(
@@ -81,7 +81,7 @@ add_fields(STATS, [
 decorate(STATS)
 
 
-SECTION = Section(
+SECTION = section(
     key="AliceBasicInfo",
     label="Основна інформація",
     summary="Огляд персонажа",

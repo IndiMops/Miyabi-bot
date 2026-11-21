@@ -3,15 +3,15 @@
 import discord
 
 from embeds.general import add_fields
-from embeds.wiki.characters.sections import Section
+from embeds.wiki.characters.sections import section
 from utils.misc import HEXtoColor
 
-from .common import COLOR, decorate
+from .common import COLOR, decorate, placeholder_page
 
 
 # Page 1: play style.
 PLAY_STYLE = discord.Embed(
-    title="Бойові механіки: Стиль гри",
+    title="Стиль гри",
     description="Alice є активним Anomaly DPS, ігровий процес якого обертається навколо трьох елементів:",
     color=HEXtoColor(COLOR)
 ).set_image(
@@ -56,9 +56,19 @@ add_fields(PLAY_STYLE, [
 decorate(PLAY_STYLE)
 
 
-SECTION = Section(
+SECTION = section(
     key="AliceCombatMechanics",
     label="Бойові механіки",
     summary="Особливості бою",
-    pages=(PLAY_STYLE,),
+    pages=(
+        PLAY_STYLE,
+        placeholder_page(
+            "Blade Etiquette та Starshine Waltz",
+            "максимальний запас Blade Etiquette, як він накопичується й витрачається та що дає кожен рівень заряду Starshine Waltz",
+        ),
+        placeholder_page(
+            "Polarity Assault і Disorder",
+            "що таке Polarity Assault, чим він відрізняється від звичайного Assault і як взаємодіє з Disorder",
+        ),
+    ),
 )
