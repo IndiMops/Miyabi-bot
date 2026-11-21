@@ -60,7 +60,7 @@ class AliceEmbed:
         {
             "label": "Бойові механіки",
             "value": "AliceCombatMechanics",
-            "description": "Особливості бою — 3 сторінки",
+            "description": "Особливості бою — 1 сторінка",
         },
         {
             "label": "Навички",
@@ -93,7 +93,7 @@ class AliceEmbed:
         url="https://i.imgur.com/2Hf0bg6.png"
     )
 
-    fields = [
+    add_fields(BasicInfoP1, [
         {
             "name": "Ранг:",
             "value": "<:Icon_AgentRank_S:1530870923085742111>",
@@ -121,9 +121,7 @@ class AliceEmbed:
             "value": "<:Practiced_Perfection:1533459749700636673> [Відточена досконалість](https://zenless-zone-zero.fandom.com/wiki/Practiced_Perfection)",
             "inline": True,
         },
-    ]
-
-    add_fields(BasicInfoP1, fields)
+    ])
         
     _decorate_alice_embed(BasicInfoP1)
     
@@ -137,7 +135,7 @@ class AliceEmbed:
         url="https://i.imgur.com/4kwWaeR.png"
     )
     
-    fields = [
+    add_fields(BasicInfoP2, [
         {
             "name": "⠀",
             "value": "- HP: 7 673\n- ATK: 880\n- DEF: 606\n- Impact: 86\n- CRIT Rate: 5%\n- CRIT DMG: 50%",
@@ -153,22 +151,21 @@ class AliceEmbed:
             "value": "Без бонусів Core Skill її базові характеристики на 60 рівні становлять приблизно:\n- Base ATK: 805,7\n- Anomaly Mastery: 106\n\nCore Skill F сумарно надає:\n- +75 Base ATK\n- +36 Anomaly Mastery.\n\n*Саме тому в одних базах можна побачити 806 ATK і 106 AM, а в інших 880 ATK і 142 AM. Просто одна показує чистий рівень, а інша враховує Core Skill.*",
             "inline": False
         }
-    ]
-    add_fields(BasicInfoP2, fields)
+    ])
     
     _decorate_alice_embed(BasicInfoP2)
 
 
     # Second menu "Battle Mechanics"
     BattleMechanicsP1 = discord.Embed(
-        title="Бойові механіки: Стиль гри — 1/3",
+        title="Бойові механіки: Стиль гри",
         description="Alice є активним Anomaly DPS, ігровий процес якого обертається навколо трьох елементів:",
         color=HEXtoColor(ALICE_COLOR)
     ).set_image(
         url="https://i.imgur.com/R1YEorB.png"
     )
     
-    fields = [
+    add_fields(BattleMechanicsP1, [
         {
             "name": "Blade Etiquette",
             "value": "Унікальний ресурс Alice, потрібний для зарядженої Базових атак.",
@@ -202,9 +199,7 @@ class AliceEmbed:
             'value': "*Найкраще використовувати Starshine Waltz із повним зарядом у три смуги. Використання однієї чи двох смуг можливе, але не активує головну частину її механіки — Polarity Assault.*",
             "inline": False
         }
-    ]
-
-    add_fields(BattleMechanicsP1, fields)
+    ])
     _decorate_alice_embed(BattleMechanicsP1)
     
     AliceBasicInfo_pages = [
