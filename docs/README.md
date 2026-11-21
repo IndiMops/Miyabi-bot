@@ -4,8 +4,8 @@ This directory is a short practical reference for quickly recalling, after a
 break, how the project is structured, how to run it, and where to change a
 given behavior.
 
-The documentation describes the implementation as of **July 24, 2026**. The
-code always remains the source of truth.
+The documentation describes the implementation as of **November 21, 2026**.
+The code always remains the source of truth.
 
 ## Where to start
 
@@ -16,6 +16,8 @@ code always remains the source of truth.
 5. [Development, checks, and diagnostics](development.md)
 6. [Status monitoring](status-monitoring.md)
 7. [Docker](docker.md)
+8. [Agent page template](agent-template.md) — structure and content rules for
+   `/characters` agent pages
 
 The directory also contains the
 [Privacy Policy](privacy.md) and [Terms of Service](terms.md).
@@ -45,8 +47,8 @@ In normal mode (`DEBUG=False`) the following are loaded:
 
 - `/info`;
 - `/help`;
-- `/characters` — contains Alice's pages, demo pagination for 35 placeholder
-  fire agents, and safe placeholders for the other attributes.
+- `/characters` — contains Alice's pages and safe placeholders for the other
+  attributes.
 
 In debug mode the test commands `/ping`, `/pagination_test`, and `/deep_menu`
 are loaded as well. They **have no owner check**, so with global sync they are
