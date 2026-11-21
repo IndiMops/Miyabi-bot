@@ -164,9 +164,8 @@ workflow runs when a `v*.*.*` tag is pushed:
 
 Publishing the draft stays a manual step on GitHub.
 
-Existing tags (`v0.1.0`, `v0.1.1`) are not changed or re-checked. They
-predate this check, and `config.json` still says `0.0.1`. For the next
-release:
+Existing tags (`v0.1.0`, `v0.1.1`) predate this check and are not re-checked.
+For each release:
 
 1. In a task branch, set `bot.version` (for example to `0.2.0`) and
    `bot.last_update`; PR into `dev`.
